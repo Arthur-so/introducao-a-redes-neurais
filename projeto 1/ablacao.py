@@ -1,3 +1,5 @@
+import argparse
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -25,21 +27,27 @@ CONFIGS = [
 ]
 
 
-def roda(kw, train_t, val_t, seed):
+def roda(kw, train_t, val_t, seed, epocas):
     torch.manual_seed(seed)
     net = mlp(dropout=kw.get("dropout", 0.0))
-    hist = train(net, train_t, val_t, **{k: v for k, v in kw.items() if k != "dropout"})
+    hist = train(net, train_t, val_t, epochs=epocas,
+                 **{k: v for k, v in kw.items() if k != "dropout"})
     return net, hist
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--epocas", type=int, default=EPOCHS)
+    epocas = ap.parse_args().epocas
+
     tr, va, te = load_splits()
     sc = Scaler(tr)
     train_t, val_t = sc.to_tensors(tr), sc.to_tensors(va)
 
+    print(f"orcamento: {epocas} epocas, {len(SEEDS)} seeds por configuracao\n")
     resultados, historicos = {}, {}
     for nome, kw in CONFIGS:
-        execucoes = [roda(kw, train_t, val_t, s) for s in SEEDS]
+        execucoes = [roda(kw, train_t, val_t, s, epocas) for s in SEEDS]
         historicos[nome] = execucoes[0][1]
         med = {k: np.mean([metrics(n, te, sc)[k] for n, _ in execucoes])
                for k in ("MAE", "MSE", "RMSE", "R2")}
@@ -60,8 +68,9 @@ def main():
     for ax, nome in zip(axes.ravel(), mostrar):
         curvas(ax, historicos[nome], nome)
     fig.tight_layout()
-    fig.savefig("ablacao.png", dpi=130)
-    print("\ngrafico salvo em ablacao.png")
+    saida = f"ablacao_{epocas}.png"
+    fig.savefig(saida, dpi=130)
+    print(f"\ngrafico salvo em {saida}")
 
 
 if __name__ == "__main__":
