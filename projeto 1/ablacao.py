@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from baseline import EPOCHS, curvas, fmt, metrics, mlp, train
+from baseline import DEPTH, EPOCHS, WIDTH, curvas, fmt, metrics, mlp, train
 from data import load_splits, Scaler
 
 SEEDS = (0, 1, 2)
@@ -54,8 +54,8 @@ def plota(historicos, width, depth, epocas):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--epocas", type=int, default=EPOCHS)
-    ap.add_argument("--width", type=int, default=8)
-    ap.add_argument("--depth", type=int, default=2)
+    ap.add_argument("--width", type=int, default=WIDTH)
+    ap.add_argument("--depth", type=int, default=DEPTH)
     ap.add_argument("--replot", action="store_true", help="regera o grafico a partir dos historicos salvos")
     args = ap.parse_args()
     epocas, width, depth = args.epocas, args.width, args.depth

@@ -9,10 +9,10 @@ import torch.nn as nn
 
 from data import load_splits, Scaler
 
-WIDTH, LR, BATCH, EPOCHS = 8, 0.1, 8, 8000
+WIDTH, DEPTH, LR, BATCH, EPOCHS = 32, 3, 0.1, 8, 30000
 
 
-def mlp(width=WIDTH, depth=2, dropout=0.0):
+def mlp(width=WIDTH, depth=DEPTH, dropout=0.0):
     layers, d = [], 1
     for _ in range(depth):
         layers += [nn.Linear(d, width), nn.Tanh()]
@@ -85,7 +85,7 @@ def fmt(name, m):
     return f"{name:<24} " + "  ".join(f"{k}={m[k]:7.4f}" for k in ("MAE", "MSE", "RMSE", "R2"))
 
 
-def busca(train_t, val_t):
+def busca(train_t, val_t, epocas):
     """Busca empirica que definiu o baseline: mediana de 3 seeds por configuracao."""
     print(f"{'val':>7} {'par':>5} {'width':>5} {'depth':>5} {'act':>5} {'lr':>5} {'batch':>5}")
     linhas = []
@@ -100,7 +100,7 @@ def busca(train_t, val_t):
                 d = width
             net = nn.Sequential(*layers, nn.Linear(d, 1))
             n_par = sum(p.numel() for p in net.parameters())
-            vals.append(train(net, train_t, val_t, epochs=EPOCHS, lr=lr, batch=batch)[:, 1].min())
+            vals.append(train(net, train_t, val_t, epochs=epocas, lr=lr, batch=batch)[:, 1].min())
         linhas.append((float(np.median(vals)), n_par, width, depth, act.__name__, lr, batch))
     for r in sorted(linhas)[:15]:
         print(f"{r[0]:7.3f} {r[1]:5} {r[2]:5} {r[3]:5} {r[4]:>5} {r[5]:5} {r[6]:5}")
@@ -110,6 +110,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--busca", action="store_true", help="roda a busca empirica de arquitetura")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--epocas", type=int, default=EPOCHS)
     args = ap.parse_args()
 
     tr, va, te = load_splits()
@@ -117,15 +118,16 @@ def main():
     train_t, val_t = sc.to_tensors(tr), sc.to_tensors(va)
 
     if args.busca:
-        busca(train_t, val_t)
+        busca(train_t, val_t, args.epocas)
         return
 
     torch.manual_seed(args.seed)
     net = mlp()
-    print(f"baseline: MLP 1-{WIDTH}-{WIDTH}-1 tanh, "
+    camadas = "-".join(["1"] + [str(WIDTH)] * DEPTH + ["1"])
+    print(f"baseline: MLP {camadas} tanh, "
           f"{sum(p.numel() for p in net.parameters())} parametros, "
-          f"SGD lr={LR} batch={BATCH}, {EPOCHS} epocas")
-    hist = train(net, train_t, val_t)
+          f"SGD lr={LR} batch={BATCH}, {args.epocas} epocas")
+    hist = train(net, train_t, val_t, epochs=args.epocas)
     print(f"melhor epoca de validacao: {hist[:, 1].argmin()}")
     for nome, split in (("treino", tr), ("validacao", va), ("teste", te)):
         print(fmt(nome, metrics(net, split, sc)))

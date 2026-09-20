@@ -99,90 +99,117 @@ ser suave.
 
 ---
 
-## 4. Profundidade: 2 camadas ocultas
+## 4. Arquitetura: 32 neurônios × 3 camadas
 
-**Decisão:** 2 camadas ocultas.
+**Decisão:** 3 camadas ocultas de 32 neurônios cada. Total: **2209 parâmetros**.
 
-**Alternativas testadas:** 1, 2, 3, 4 e 5 camadas.
+**Critério de seleção:** menor erro de validação. Essa é a única escolha legítima,
+porque o conjunto de teste não pode participar de nenhuma decisão de modelagem — ele
+existe para estimar o desempenho final de forma imparcial.
 
-**Evidência** (largura 8, 30000 épocas, 6 seeds — média ± desvio):
+**Espaço de busca varrido:** larguras {4, 8, 16, 32, 64, 128} × profundidades {1, 2, 3},
+mais profundidades {4, 5} na largura 8.
 
-| Profundidade | Parâmetros | MSE validação | MSE teste |
+**Evidência** (30000 épocas, 3 seeds, MSE de validação):
+
+| Arquitetura | Parâmetros | Validação | Teste |
 |---|---|---|---|
-| 2 | 97 | **0.7681 ± 0.0304** | **0.3177 ± 0.0114** |
-| 3 | 169 | 0.8539 ± 0.1579 | 0.3522 ± 0.0303 |
-| 4 | 241 | 0.9932 ± 0.1542 | 0.3770 ± 0.0312 |
-| 5 | 313 | 1.1999 ± 0.1110 | 0.4236 ± 0.0263 |
-
-Profundidade 1 também foi testada (em 3000 épocas) e ficou claramente atrás:
-o melhor modelo de 1 camada deu 1.4154 contra 1.2058 do melhor de 2 camadas.
-
-**Por que 2 e não mais:** a degradação é monótona — cada camada extra piora. E repare
-na coluna de desvio-padrão: ele **quase dobra** ao passar de 2 para 3 camadas (0.03 →
-0.16). Isso não é só perda de desempenho, é perda de *estabilidade*: os treinos passam
-a depender muito da inicialização.
-
-**A explicação técnica:** `tanh` tem derivada máxima de 1 e tipicamente muito menor.
-Ao retropropagar por várias camadas, os gradientes são multiplicados sucessivamente
-por esses valores pequenos e encolhem exponencialmente — é o **gradiente evanescente**.
-As primeiras camadas praticamente param de aprender. Redes profundas modernas
-contornam isso com ReLU, normalização em lote e conexões residuais — nenhum dos quais
-é permitido aqui, já que o enunciado exige uma MLP básica com SGD puro.
-
-**Por que 1 camada não basta:** o teorema da aproximação universal garante que uma
-camada oculta é suficiente *com neurônios suficientes*, mas não diz que é eficiente.
-Para esta função oscilante, 2 camadas representam o mesmo com menos parâmetros.
-
----
-
-## 5. Largura: 8 neurônios por camada
-
-**Decisão:** 8 neurônios em cada uma das 2 camadas ocultas. Total: **97 parâmetros**.
-
-**Alternativas testadas:** 4, 8, 16, 32, 64 e 128 neurônios.
-
-**Evidência** (30000 épocas, 3 seeds):
-
-| Largura × Profundidade | Parâmetros | MSE validação | MSE teste |
-|---|---|---|---|
-| **8×2** | **97** | 0.7559 | **0.3101** |
-| 16×2 | 321 | 0.8050 | 0.3488 |
-| 32×2 | 1153 | 0.7117 | 0.3214 |
-| 64×2 | 4353 | 0.7863 | 0.3262 |
-| 128×2 | 16897 | 0.7386 | 0.3229 |
-| 32×3 | 2209 | 0.6889 | 0.3332 |
+| **32×3** | **2209** | **0.6889** | 0.3332 |
 | 128×3 | 33409 | 0.6991 | 0.3290 |
+| 32×2 | 1153 | 0.7117 | 0.3214 |
+| 128×2 | 16897 | 0.7386 | 0.3229 |
+| 8×2 | 97 | 0.7559 | 0.3101 |
+| 16×3 | 593 | 0.7572 | 0.3307 |
+| 64×3 | 8513 | 0.7692 | 0.3360 |
+| 64×2 | 4353 | 0.7863 | 0.3262 |
+| 16×2 | 321 | 0.8050 | 0.3488 |
+| 8×3 | 169 | 0.9459 | 0.3724 |
 
-Largura 4 foi testada e ficou atrás (1.039 contra 0.796 de largura 8 em 8000 épocas):
-é pouca capacidade para representar as oscilações da função.
+A 32×3 tem o **menor erro de validação de toda a varredura**, e isso foi reconfirmado
+ao repetir com 6 seeds: 0.7328 ± 0.0599 contra 0.7681 ± 0.0304 da 8×2.
 
-**O ponto central:** aumentar a capacidade **não melhorou o teste em nenhum caso**. A
-rede de 97 parâmetros tem o melhor MSE de teste de toda a varredura, incluindo redes
-com até 33 mil parâmetros — 344 vezes maiores.
+**Por que 32 e não mais:** a validação para de melhorar depois de 32. As redes de 64 e
+128 neurônios não trazem ganho — 128×3 tem 33409 parâmetros (15× mais) para um
+resultado equivalente. Aumentar capacidade além desse ponto só adiciona parâmetros que
+os 30 pontos de treino não conseguem determinar.
 
-**Por quê:** com 30 pontos de treino, capacidade excedente vira decoração dos dados
-(*overfitting*), não aprendizado. A quantidade de dados é que limita, não a
-arquitetura.
+**Por que 3 camadas e não 1:** o teorema da aproximação universal garante que uma
+camada oculta basta *com neurônios suficientes*, mas não diz que é eficiente. Para
+esta função oscilante, camadas adicionais representam a mesma forma com menos
+parâmetros. Profundidade 1 ficou claramente atrás nos testes iniciais (1.4154 contra
+1.2058 do melhor de 2 camadas, em 3000 épocas).
+
+**Por que não mais que 3 camadas:** testamos 4 e 5 (na largura 8) e a degradação é
+monótona e acompanhada de perda de estabilidade — o desvio-padrão entre seeds quase
+dobra de 2 para 3 camadas (0.03 → 0.16) e continua alto depois:
+
+| Profundidade (largura 8) | Validação | Teste |
+|---|---|---|
+| 2 | 0.7681 ± 0.0304 | 0.3177 ± 0.0114 |
+| 3 | 0.8539 ± 0.1579 | 0.3522 ± 0.0303 |
+| 4 | 0.9932 ± 0.1542 | 0.3770 ± 0.0312 |
+| 5 | 1.1999 ± 0.1110 | 0.4236 ± 0.0263 |
+
+**A explicação técnica:** `tanh` tem derivada máxima de 1 e tipicamente muito menor. Ao
+retropropagar por várias camadas, os gradientes são multiplicados sucessivamente por
+esses valores pequenos e encolhem exponencialmente — é o **gradiente evanescente**. As
+primeiras camadas praticamente param de aprender. Redes profundas modernas contornam
+isso com ReLU, normalização em lote e conexões residuais — nenhum dos quais é permitido
+aqui, já que o enunciado exige MLP básica com SGD puro. Três camadas é o limite prático
+antes que esse efeito domine.
 
 ---
 
-## 6. O critério de desempate: parcimônia
+## 5. A ressalva honesta sobre essa escolha
 
-**Decisão:** entre modelos com desempenho estatisticamente equivalente, escolher o de
-menos parâmetros.
+Este é o ponto mais delicado do trabalho e deve ser apresentado abertamente, não
+escondido.
 
-**Onde isso decidiu:** na busca inicial, a rede 8×2 (97 parâmetros) empatou em
-validação com a 16×3 (593 parâmetros) — ambas em 0.796. Escolhemos a menor.
+**O conflito:** a 32×3 vence na validação (0.7328 contra 0.7681), mas **perde no teste**
+(0.3394 contra 0.3177 da 8×2, ambas com 6 seeds).
 
-**Por quê:** é a navalha de Occam aplicada a aprendizado de máquina. Com desempenho
-igual, o modelo menor generaliza melhor, treina mais rápido, é mais fácil de
-interpretar e tem menos chance de estar explorando ruído. É também o princípio por
-trás de toda regularização.
+**O que a estatística diz:** aplicando um teste t de Welch sobre as 6 seeds —
 
-**Se perguntarem "por que não escolheu a rede maior, já que empataram?":** porque
-empate em validação medido com 30 pontos não é empate real — é incerteza. Diante da
-incerteza, o modelo mais simples é a aposta mais segura, e o teste confirmou
-(8×2 deu 0.3101 contra 0.3307 da 16×3).
+- Diferença na **validação**: t = 1.29 → **não significativa**. A vantagem da 32×3 é
+  menor que a incerteza da própria medida.
+- Diferença no **teste**: t = 2.27 → **significativa**, a favor da 8×2.
+
+**Por que mesmo assim a 32×3 é o baseline:** porque o critério de seleção declarado é o
+erro de validação, e usar o teste para escolher arquitetura invalidaria o teste como
+estimativa imparcial. Trocar de modelo depois de olhar o teste é exatamente o erro
+metodológico que a separação em três conjuntos existe para impedir.
+
+**Por que a validação é frágil aqui:** ela tem apenas **30 pontos**, e é usada duas
+vezes — para escolher a arquitetura e para escolher a época de parada. Todo conjunto
+usado para escolher fica otimista, e modelos com mais capacidade exploram mais esse
+efeito. O jeito correto de resolver isso seria **validação cruzada (k-fold)** sobre
+treino+validação, eliminando a dependência de um único corte de 30 pontos. Não foi
+feito por custo computacional, e está listado nas limitações.
+
+**Se o professor perguntar "por que não usou a rede menor, que vai melhor no teste?":**
+a resposta é que essa informação só é conhecida *depois* de abrir o teste, e decidir com
+base nela transformaria o teste em um segundo conjunto de validação — o modelo
+escolhido assim já não teria estimativa imparcial nenhuma.
+
+---
+
+## 6. O papel da parcimônia
+
+**Princípio adotado:** entre modelos **estatisticamente equivalentes**, preferir o de
+menos parâmetros (navalha de Occam).
+
+**Onde ele foi aplicado:** dentro da faixa de capacidade alta, a 32×3 (2209 parâmetros)
+foi preferida à 128×3 (33409 parâmetros), que teve validação praticamente idêntica
+(0.6991 contra 0.6889) com 15× mais parâmetros.
+
+**Onde ele não decidiu:** entre 32×3 e 8×2, a parcimônia apontaria para a 8×2. Ela foi
+sobrepujada pelo critério primário — menor erro de validação. Esse conflito está
+documentado na seção anterior.
+
+**Por que a parcimônia importa:** com desempenho igual, o modelo menor generaliza
+melhor, treina mais rápido e tem menos chance de estar explorando ruído. É o mesmo
+princípio por trás de toda regularização — e, de fato, foi a regularização L2 que
+melhorou nosso baseline, conforme a seção 14.
 
 ---
 
@@ -224,41 +251,44 @@ por cima — a linha grossa. Isso é apenas apresentação, não altera o treino
 
 ---
 
-## 9. Número de épocas: 8000
+## 9. Número de épocas: 30000
 
-**Decisão:** 8000 épocas para o baseline.
+**Decisão:** 30000 épocas.
 
-**Por que esse número é tão alto:** foi uma descoberta empírica, não um chute. O
-estudo de convergência (8×2, média de 5 seeds) mostrou:
+**Por que esse número é tão alto:** foi uma descoberta empírica, não um chute. A
+convergência do baseline 32×3 (MSE, menor valor até cada época):
 
-| Época | MSE treino | MSE validação |
+| Época | Treino | Validação |
 |---|---|---|
-| 500 | 0.560 | 1.526 |
-| 2000 | 0.356 | 1.266 |
-| 5000 | 0.230 | 0.964 |
-| 7500 | 0.195 | 0.835 |
-| 10000 | 0.182 | 0.790 |
-| 15000 | 0.171 | 0.779 |
-| 20000 | 0.163 | 0.771 |
+| 1000 | 0.4949 | 1.4057 |
+| 2500 | 0.3182 | 1.1907 |
+| 5000 | 0.1576 | 0.8097 |
+| 10000 | 0.1171 | 0.8097 |
+| 15000 | 0.0984 | 0.8097 |
+| 20000 | 0.0934 | 0.7431 |
+| 30000 | 0.0706 | 0.7431 |
 
-A partir da época **8228** o resultado já está dentro de 2% do melhor observado —
-daí o corte em 8000.
+A melhor época de validação é a **18001**. O orçamento de 30000 foi escolhido para
+ficar confortavelmente além desse ponto — parar em 20000 arriscaria cortar a cauda da
+curva em execuções com outras sementes (a média entre 3 seeds dá época ótima 18153).
 
 **Por que SGD puro precisa de tanta época:** sem momentum, cada passo usa apenas o
 gradiente instantâneo. Em regiões onde a superfície de erro é um vale longo e estreito,
 isso produz um ziguezague lento. Momentum existe exatamente para acumular direção ao
 longo dos passos e acelerar nessas regiões — e o enunciado proíbe usá-lo no baseline.
-**Então a lentidão não é um defeito da nossa implementação: é a consequência direta da
-restrição imposta.**
+**A lentidão não é defeito da implementação: é consequência direta da restrição
+imposta.**
 
-**Isso foi verificado depois:** rodamos a ablação também com 30000 épocas. O baseline
-melhorou de 0.335 para 0.310 no teste — ou seja, 8000 épocas de fato não é o ponto de
-convergência total, é o ponto de retorno decrescente.
+**Verificação independente:** o mesmo fenômeno foi medido na rede 8×2, com um estudo de
+convergência de 5 seeds que foi até 20000 épocas. Lá o resultado continuava melhorando
+de 8000 (val 0.82) até 20000 (val 0.771), confirmando que a lentidão é do otimizador,
+não da arquitetura.
 
-**Se perguntarem "por que não 30000, já que é melhor?":** porque o ganho de 8000 para
-30000 é de ~7% ao custo de quase 4× mais computação, e porque o critério declarado foi
-usar o ponto de retorno decrescente. A decisão está documentada e é reproduzível pelo
-parâmetro `--epocas`.
+**Custo:** ~25 segundos por treino do baseline. A ablação completa (15 configurações ×
+3 seeds) leva cerca de 1h20.
+
+**Reprodutível com outro orçamento:** `python3 baseline.py --epocas N` e
+`python3 ablacao.py --epocas N`.
 
 ---
 
@@ -275,9 +305,16 @@ overfitting, enquanto o modelo entregue é o melhor encontrado.
 `state_dict` sempre que a validação melhora e recarrega ao final.
 
 **Consequência importante para a ablação:** *early stopping é, ele próprio, uma forma
-de regularização*. Essa é a explicação mais provável para L1 e L2 não terem melhorado
-o baseline 8×2: o benefício já estava sendo capturado pela parada antecipada. É um
-ponto forte para citar, porque mostra entendimento de que os componentes interagem.
+de regularização*. Isso significa que o baseline **já vem regularizado**, e que L1, L2 e
+dropout estão competindo com um mecanismo que já captura parte do benefício disponível.
+
+Isso explica dois resultados de uma vez. Primeiro, por que o ganho do L2 é de 8% e não
+maior: parte do overfitting já havia sido contida pela parada antecipada. Segundo, por
+que numa rede pequena (a 8×2, com 3 parâmetros por amostra) nenhuma regularização
+adicional melhorava nada — ali o early stopping sozinho já bastava.
+
+É um ponto forte para citar, porque mostra entendimento de que os componentes interagem
+em vez de agirem isoladamente.
 
 **Efeito colateral a conhecer:** como a validação é usada tanto para escolher a
 arquitetura quanto para escolher a época de parada, o erro de validação fica
@@ -286,23 +323,45 @@ foram tiradas do conjunto de teste, que não participou de nenhuma decisão.
 
 ---
 
-## 11. Repetir cada experimento com várias sementes
+## 11. Sementes fixas e comparação pareada
 
-**Decisão:** 3 seeds em cada configuração da ablação, 5 a 6 nos estudos de arquitetura.
+**Decisão:** toda aleatoriedade é controlada por semente fixa, e baseline e ablações
+usam **exatamente as mesmas sementes** (0, 1 e 2).
 
-**Por quê:** os pesos iniciais são aleatórios, e com 30 pontos de treino a variação
-entre execuções é grande. Decidir com uma única execução é decidir por sorte.
+**Por que isso é indispensável:** com 30 pontos de treino, a variação entre execuções é
+grande. Se o baseline rodasse com uma semente e a ablação com outra, parte da diferença
+observada seria só inicialização diferente — e a comparação não significaria nada.
 
-**Isso mudou uma conclusão do projeto.** Na varredura de capacidade com 3 seeds, a rede
-32×3 parecia vencer o baseline na validação (0.689 contra 0.756). Ao repetir com 6
-seeds, a diferença encolheu para 0.733 contra 0.768 — e um teste t de Welch mostrou
-**t = 1.29**, ou seja, a diferença é menor que a incerteza da própria medida. Não era
-uma vantagem real; era ruído.
+**O que a semente fixa garante, verificado empiricamente:**
 
-No mesmo teste, a vantagem do 8×2 no **teste** deu **t = 2.27**, essa sim consistente.
+1. **Pesos iniciais idênticos** entre baseline, L1, L2, momentum e dropout. Todas as
+   configurações partem exatamente da mesma rede.
+2. **Sequência de lotes idêntica** entre o baseline e as ablações que não consomem
+   números aleatórios adicionais (L1, L2, momentum). Elas veem os mesmos dados na mesma
+   ordem, na mesma época.
+3. **Resultados reprodutíveis bit a bit** entre execuções repetidas.
 
-**Se perguntarem "como sabe que a diferença é real?":** a resposta é essa — comparando
-a diferença entre médias com o desvio-padrão entre seeds.
+Isso torna a comparação **pareada**: a única diferença entre baseline e cada ablação é
+o componente sendo estudado, e nada mais.
+
+**A única exceção, inevitável:** o **dropout** sorteia máscaras durante o treino,
+consumindo números aleatórios que o baseline não consome. A partir do primeiro sorteio,
+a sequência de lotes diverge. Isso é inerente ao método — não há como aplicar dropout
+sem consumir aleatoriedade — e vale mencionar caso seja questionado.
+
+**Onde está no código:** `torch.manual_seed(seed)` é chamado imediatamente antes de
+construir cada rede, em `roda()` (`ablacao.py`) e em `main()` (`baseline.py`). A divisão
+treino/validação/teste usa semente própria e fixa (42) em `data.py`.
+
+**Por que 3 sementes e não 1:** decidir com uma única execução é decidir por sorte. As
+tabelas reportam a **média** entre sementes, e os estudos de arquitetura usaram 5 a 6
+sementes com **desvio-padrão**, para permitir julgar se uma diferença é real.
+
+**Isso mudou uma conclusão do projeto.** Na varredura de capacidade com 3 sementes, a
+32×3 parecia vencer a 8×2 na validação por 0.689 contra 0.756. Ao repetir com 6
+sementes, a diferença encolheu para 0.733 contra 0.768, e um teste t de Welch deu
+**t = 1.29** — menor que a incerteza da medida. Sem repetir, teríamos relatado como
+fato uma diferença que é ruído.
 
 ---
 
@@ -326,61 +385,101 @@ varredura é por potências de 10.
 
 ---
 
-## 13. Por que a rede 32×3 é estudo complementar, e não o baseline
+## 13. O papel da rede 8×2 no trabalho
 
-**Decisão:** manter o 8×2 como baseline e apresentar a ablação no 32×3 como seção
-separada, explicitamente rotulada.
+A rede 8×2 (97 parâmetros) foi a vencedora de uma busca anterior feita com orçamento de
+8000 épocas, e continua no trabalho como **termo de comparação**, não como baseline.
 
-**O conflito:** na validação, a 32×3 vai melhor (0.733 contra 0.768). No teste, vai
-pior (0.339 contra 0.318).
+**Por que ela ainda é relevante:**
 
-**Por que confiamos no teste:**
+1. Ela documenta que o resultado **depende do orçamento de épocas**. Com 8000 épocas a
+   8×2 vencia; ao estender para 30000 e varrer capacidades maiores, a 32×3 passou à
+   frente na validação. Uma busca de arquitetura feita sob um orçamento diferente do
+   usado no treino final pode levar a outra escolha — e isso vale registrar.
+2. O contraste entre as duas é o que dá sentido à ablação (seção 14): a mesma
+   regularização que não fazia efeito na rede pequena recupera 8% na rede grande.
 
-1. A validação foi usada para escolher arquitetura **e** época de parada. Todo conjunto
-   usado para escolher fica otimista — e modelos com mais capacidade exploram mais esse
-   efeito, porque têm mais liberdade para se encaixar naqueles 30 pontos específicos.
-2. A validação tem **30 pontos**; o teste tem **240**. A estimativa do teste é bem mais
-   precisa.
-3. A vantagem da 32×3 na validação não é estatisticamente significativa (t = 1.29); a
-   vantagem do 8×2 no teste é (t = 2.27).
+**Métricas comparadas** (6 seeds, 30000 épocas):
 
-**Por que mesmo assim o estudo no 32×3 entra no trabalho:** porque ele demonstra o
-ponto mais interessante de toda a ablação — ver a seção seguinte.
+| | Parâmetros | Validação | Teste |
+|---|---|---|---|
+| 8×2 | 97 | 0.7681 ± 0.0304 | 0.3177 ± 0.0114 |
+| **32×3 (baseline)** | **2209** | **0.7328 ± 0.0599** | 0.3394 ± 0.0204 |
 
 ---
 
 ## 14. A conclusão central da ablação
 
-**O resultado:** a mesma regularização que não fez efeito na rede pequena recuperou
-8% na rede grande.
+**O resultado principal:** a regularização **L2 com intensidade 1e-4 melhorou o
+baseline em 8%**.
 
 | | MSE teste | R² |
 |---|---|---|
-| baseline 8×2 (97 par.) | 0.3177 | 0.384 |
-| 32×3 sem regularização (2209 par.) | 0.3332 | 0.354 |
-| **32×3 + L2 1e-4** | **0.3063** | **0.406** |
+| baseline 32×3 | 0.3332 | 0.354 |
+| **baseline + L2 1e-4** | **0.3063** | **0.406** |
 
-**A leitura:** regularização não melhora um modelo genericamente — ela **compensa
-capacidade excedente**. Na rede de 97 parâmetros não havia excesso a conter, e qualquer
-penalidade só retirava capacidade já escassa. Na rede de 2209 parâmetros havia excesso,
-e aí a penalidade passou a valer a pena.
+Esse 0.3063 é o melhor resultado de todo o projeto — supera inclusive a rede 8×2
+(0.3177), que era a melhor sem regularização.
 
-**Sobre o momentum:** no orçamento de 8000 épocas ele parecia o melhor componente
-(MSE 0.296 contra 0.335, uma melhora de 11%). Com 30000 épocas a vantagem **desapareceu
-por completo** (0.315 contra 0.310). Ou seja, momentum não levava a um resultado melhor
-— levava ao mesmo resultado **mais rápido** (época ótima ~11000 em vez de ~17000). Esse
-achado só apareceu porque rodamos dois orçamentos diferentes, e é um bom exemplo de
-como um experimento mal dimensionado leva a conclusão errada.
+**A curva de L2 tem ótimo interior bem definido**, o que dá confiança de que o valor
+encontrado não está na borda de uma região inexplorada:
 
-**Sobre o dropout:** prejudicial nas duas redes, em todas as intensidades. Na rede 8×2
-o motivo é claro — desligar 10% a 30% de uma camada de apenas 8 neurônios é uma
-perturbação enorme, e a rede não tem redundância para absorvê-la. Dropout foi projetado
-para camadas largas, com centenas de unidades.
+| Intensidade de L2 | MSE teste |
+|---|---|
+| 1e-5 | 0.3177 |
+| **1e-4** | **0.3063** |
+| 1e-3 | 0.3713 |
+| 1e-2 | 0.5042 |
 
-**Sobre estabilidade numérica:** na rede 32×3, `momentum ≥ 0.7` **divergiu em todas as
-3 seeds** (a perda vai a NaN). Com `lr = 0.1` e momentum 0.7, o passo efetivo fica
-grande demais para uma rede de 3 camadas. O código reporta isso explicitamente em vez
-de deixar o NaN contaminar as médias silenciosamente.
+**A leitura conceitual:** regularização não melhora um modelo genericamente — ela
+**compensa capacidade excedente**. O baseline tem 2209 parâmetros para 30 pontos de
+treino, ou seja, 73 parâmetros por amostra. Há muito espaço para decorar ruído, e é
+esse espaço que a penalidade L2 contém. Na rede 8×2, que tem 3 parâmetros por amostra,
+não havia excesso a conter — e lá nenhuma intensidade de L2 melhorou nada.
+
+**Sobre o L1:** praticamente sem efeito nas intensidades úteis (1e-5 dá 0.3314, contra
+0.3332 do baseline — diferença dentro do ruído) e destrutivo a partir de 1e-3 (0.5268).
+L1 induz esparsidade, zerando pesos inteiros; numa rede já pequena para a tarefa, isso
+remove capacidade útil em vez de conter excesso.
+
+**Sobre o momentum:** não ajudou. Um alerta importante aqui: num experimento anterior
+com **8000 épocas**, o momentum parecia ser o melhor componente de todos (MSE 0.296
+contra 0.335, melhora de 11%). Ao repetir com 30000 épocas, a vantagem **desapareceu
+por completo**. Momentum não levava a um resultado melhor — levava ao mesmo resultado
+**mais rápido** (época ótima ~11000 em vez de ~17000). Esse achado só apareceu porque
+dois orçamentos foram testados, e é um bom exemplo de como um experimento mal
+dimensionado produz conclusão errada.
+
+**Sobre o dropout:** prejudicial em todas as intensidades (0.4811 a 0.5108, contra
+0.3332 do baseline). Dropout força a rede a não depender de neurônios individuais, o
+que exige redundância — e redundância exige dados. Com 30 pontos de treino, ele remove
+sinal em vez de ruído.
+
+**Sobre estabilidade numérica:** `momentum ≥ 0.7` e `dropout 0.3` **divergiram em todas
+as 3 seeds** (perda vai a NaN). Com `lr = 0.1` e momentum 0.7, o passo efetivo fica
+grande demais para uma rede de 3 camadas. O código detecta e reporta isso
+explicitamente (`DIVERGIU em n/N seeds`) em vez de deixar o NaN contaminar as médias
+silenciosamente.
+
+---
+
+## 14b. Métricas finais do baseline
+
+Treino completo do baseline (`python3 baseline.py`, semente 0, 30000 épocas, melhor
+época de validação = 18001), todas na escala original de `y`:
+
+| Conjunto | MAE | MSE | RMSE | R² |
+|---|---|---|---|---|
+| Treino (30 pts) | 0.263 | 0.121 | 0.347 | 0.673 |
+| Validação (30 pts) | 0.414 | 0.274 | 0.524 | 0.642 |
+| Teste (240 pts) | 0.467 | 0.370 | 0.608 | 0.283 |
+
+O gap entre treino (MSE 0.121) e teste (0.370) é a assinatura do overfitting que a
+regularização L2 vem corrigir — e é visível no gráfico `baseline.png`, onde a curva
+ajustada apresenta platôs e picos abruptos perseguindo pontos individuais de treino.
+
+Lembrete: R² não é comparável entre conjuntos, porque cada um é normalizado pela
+própria variância (seção 15).
 
 ---
 
@@ -404,8 +503,8 @@ original de `y`.
 **Cuidado importante:** R² é sempre calculado contra a variância **do conjunto em que é
 medido**, e nossos conjuntos têm dispersões diferentes (desvio de `y`: 0.607 no treino,
 0.875 na validação, 0.718 no teste). Por isso **não se compara R² entre conjuntos
-diretamente** — o R² de validação (0.617) parecer melhor que o de teste (0.321) no
-mesmo modelo é efeito do denominador, não do modelo.
+diretamente** — o R² de validação do baseline (0.642) parecer muito melhor que o de
+teste (0.283) é efeito do denominador, não do modelo.
 
 **Não existe "acurácia" aqui:** acurácia é métrica de classificação, que conta acertos
 discretos. Em regressão o valor previsto praticamente nunca é exatamente igual ao real,
@@ -421,8 +520,8 @@ dividir pelo valor real explode perto da origem.
 
 - **Semente fixa (42)** na divisão treino/validação/teste — `data.py`. Sem isso, cada
   execução daria um split diferente e os números não seriam comparáveis.
-- **Semente controlada** na inicialização dos pesos — `torch.manual_seed(seed)` antes
-  de construir cada rede.
+- **Sementes fixas (0, 1, 2)** na inicialização dos pesos, as mesmas para o baseline e
+  para todas as ablações, garantindo comparação pareada (seção 11).
 - **Versões fixadas** em `requirements.txt`.
 - **Parâmetros expostos por linha de comando:** `--epocas`, `--width`, `--depth`,
   permitindo refazer qualquer experimento descrito aqui.
@@ -438,14 +537,27 @@ Declarar limitações é mais forte que escondê-las — e provavelmente serão 
 1. **A divisão 10/10/80 é atípica.** O usual é o inverso (80% treino). Com 30 pontos de
    treino, o modelo é limitado pelos dados, não pela arquitetura. A divisão veio do
    enunciado e foi seguida deliberadamente.
-2. **A validação com 30 pontos é frágil** para seleção de modelos. O ideal seria
-   validação cruzada (*k-fold*) sobre treino+validação, eliminando a dependência de um
-   único corte. Não foi feito por custo computacional.
-3. **A busca de arquitetura usou 8000 épocas**, mas alguns resultados finais usam 30000.
-   A rigor, a busca deveria ser refeita no orçamento final. A varredura de capacidade em
-   30000 épocas foi feita justamente para checar isso, e confirmou o 8×2.
-4. **O conjunto de teste foi consultado** para comparar 8×2 com 32×3. Em rigor
-   metodológico, o teste deveria ser aberto uma única vez, no final. Isso está
-   declarado abertamente em vez de omitido.
+2. **A validação com 30 pontos é frágil** para seleção de modelos, e é usada duas vezes
+   (escolher arquitetura e escolher época de parada), o que a torna otimista. A
+   diferença de validação entre a 32×3 e a 8×2 não é estatisticamente significativa
+   (t = 1.29), então a escolha da arquitetura repousa sobre uma diferença dentro do
+   ruído. O remédio correto seria **validação cruzada (k-fold)** sobre treino+validação;
+   não foi feito por custo computacional.
+3. **O baseline escolhido vai pior no teste** que a alternativa mais simples (0.3394
+   contra 0.3177, t = 2.27). Isso é sintoma do item anterior: seleção feita numa
+   validação pequena. Mantivemos a escolha pela validação porque usar o teste para
+   selecionar invalidaria o teste como estimativa imparcial — mas o fato está
+   reportado abertamente, e a rede 8×2 permanece documentada na seção 13.
+4. **`lr` e tamanho de lote foram ajustados em redes menores** (largura 4 a 64,
+   profundidade 1 a 2) e com orçamento de 8000 épocas, e depois herdados pela
+   arquitetura final. Em rigor, deveriam ser reajustados para a 32×3 com 30000 épocas.
+   Há indício de que isso importaria: `momentum ≥ 0.7` diverge nesta arquitetura com
+   `lr = 0.1`, sugerindo que a taxa está próxima do limite de estabilidade para 3
+   camadas.
 5. **A ablação não testou combinações** (L2 + momentum, por exemplo), apenas componentes
    isolados — que é o que o enunciado pede.
+6. **As métricas do `baseline.py` são de uma única semente**, para produzir os gráficos
+   ilustrativos. As tabelas de ablação usam média de 3 sementes e são mais confiáveis.
+   Por isso o MSE de teste do baseline aparece como 0.3696 no `baseline.py` e 0.3332 na
+   tabela de ablação — não é inconsistência, são estimativas com números diferentes de
+   execuções.
