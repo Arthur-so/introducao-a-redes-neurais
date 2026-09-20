@@ -71,27 +71,35 @@ def main():
         plota(historicos, width, depth, epocas)
         return
 
-    resultados, historicos = {}, {}
+    resultados, historicos, todos = {}, {}, {}
     for nome, kw in CONFIGS:
         execucoes = [roda(kw, train_t, val_t, s, epocas, width, depth) for s in SEEDS]
         historicos[nome] = execucoes[0][1]
-        med = {k: np.mean([metrics(n, te, sc)[k] for n, _ in execucoes])
+        for i, (_, h) in enumerate(execucoes):
+            todos[f"{nome}|seed{i}"] = h
+        # so entram na media as execucoes que nao divergiram
+        ok = [(n, h) for n, h in execucoes if np.isfinite(h).all()]
+        med = {k: np.mean([metrics(n, te, sc)[k] for n, _ in ok]) if ok else float("nan")
                for k in ("MAE", "MSE", "RMSE", "R2")}
-        med["val"] = np.mean([np.nanmin(h[:, 1]) for _, h in execucoes])
-        med["epoca"] = np.mean([np.nanargmin(h[:, 1]) for _, h in execucoes])
-        med["div"] = sum(not np.isfinite(h).all() for _, h in execucoes)
+        med["val"] = np.mean([h[-500:, 1].mean() for _, h in ok]) if ok else float("nan")
+        med["div"] = len(execucoes) - len(ok)
         resultados[nome] = med
         aviso = f"  DIVERGIU em {med['div']}/{len(SEEDS)} seeds" if med["div"] else ""
-        print(fmt(nome, med) + f"  val={med['val']:.4f}  epoca*={med['epoca']:.0f}" + aviso)
+        print(fmt(nome, med) + f"  val_final={med['val']:.4f}" + aviso)
 
     print("\nmelhor de cada familia por MSE de teste:")
     for fam in ("L1", "L2", "dropout", "momentum"):
-        cand = {k: v for k, v in resultados.items() if k.startswith(fam)}
+        cand = {k: v for k, v in resultados.items()
+                if k.startswith(fam) and np.isfinite(v["MSE"])}
+        if not cand:
+            print(f"  {fam:<14} todas as configuracoes divergiram")
+            continue
         melhor = min(cand, key=lambda k: cand[k]["MSE"])
         delta = cand[melhor]["MSE"] - resultados["baseline"]["MSE"]
         print(f"  {melhor:<14} MSE={cand[melhor]['MSE']:.4f}  ({delta:+.4f} vs baseline)")
 
     np.savez_compressed(cache, **historicos)
+    np.savez_compressed(cache.replace(".npz", "_seeds.npz"), **todos)
     plota(historicos, width, depth, epocas)
 
 

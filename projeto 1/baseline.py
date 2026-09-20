@@ -9,13 +9,14 @@ import torch.nn as nn
 
 from data import load_splits, Scaler
 
-WIDTH, DEPTH, LR, BATCH, EPOCHS = 32, 3, 0.1, 8, 30000
+WIDTH, DEPTH, LR, BATCH, EPOCHS = 64, 3, 0.01, 8, 10000
+ATIVACAO = nn.ReLU
 
 
-def mlp(width=WIDTH, depth=DEPTH, dropout=0.0):
+def mlp(width=WIDTH, depth=DEPTH, dropout=0.0, act=ATIVACAO):
     layers, d = [], 1
     for _ in range(depth):
-        layers += [nn.Linear(d, width), nn.Tanh()]
+        layers += [nn.Linear(d, width), act()]
         if dropout:
             layers.append(nn.Dropout(dropout))
         d = width
@@ -23,9 +24,13 @@ def mlp(width=WIDTH, depth=DEPTH, dropout=0.0):
 
 
 def train(net, train_t, val_t, epochs=EPOCHS, lr=LR, batch=BATCH,
-          momentum=0.0, l2=0.0, l1=0.0):
+          momentum=0.0, l2=0.0, l1=0.0, restaurar_melhor=False):
     """Treina com SGD e devolve o historico (treino, validacao) por epoca.
-    Ao final restaura os pesos da melhor epoca de validacao."""
+
+    Por padrao os pesos entregues sao os da ultima epoca: o orcamento de epocas e
+    fixo e igual para todas as configuracoes, para que a comparacao da ablacao nao
+    seja contaminada por early stopping (que e, ele proprio, uma regularizacao).
+    Com restaurar_melhor=True, restaura os pesos da melhor epoca de validacao."""
     xtr, ytr = train_t
     xva, yva = val_t
     opt = torch.optim.SGD(net.parameters(), lr=lr, momentum=momentum, weight_decay=l2)
@@ -43,9 +48,10 @@ def train(net, train_t, val_t, epochs=EPOCHS, lr=LR, batch=BATCH,
         net.eval()
         with torch.no_grad():
             hist.append((mse(net(xtr), ytr).item(), mse(net(xva), yva).item()))
-        if hist[-1][1] < best[0]:
+        if restaurar_melhor and hist[-1][1] < best[0]:
             best = (hist[-1][1], copy.deepcopy(net.state_dict()))
-    net.load_state_dict(best[1])
+    if restaurar_melhor:
+        net.load_state_dict(best[1])
     return np.array(hist)
 
 
@@ -124,11 +130,12 @@ def main():
     torch.manual_seed(args.seed)
     net = mlp()
     camadas = "-".join(["1"] + [str(WIDTH)] * DEPTH + ["1"])
-    print(f"baseline: MLP {camadas} tanh, "
+    print(f"baseline: MLP {camadas} {ATIVACAO.__name__}, "
           f"{sum(p.numel() for p in net.parameters())} parametros, "
           f"SGD lr={LR} batch={BATCH}, {args.epocas} epocas")
     hist = train(net, train_t, val_t, epochs=args.epocas)
-    print(f"melhor epoca de validacao: {hist[:, 1].argmin()}")
+    print(f"pesos da ultima epoca (sem early stopping); "
+          f"melhor epoca de validacao teria sido a {np.nanargmin(hist[:, 1])}")
     for nome, split in (("treino", tr), ("validacao", va), ("teste", te)):
         print(fmt(nome, metrics(net, split, sc)))
 
