@@ -31,6 +31,19 @@ CONFIGS = [
     ("L1+L2+mom", {"l1": 1e-4, "l2": 1e-5, "momentum": 0.3}),
 ]
 
+# conjunto menor usado no estudo complementar com a rede 128x3
+REDUZIDA = [
+    ("baseline", {}),
+    ("L1 1e-4", {"l1": 1e-4}),
+    ("L1 1e-3", {"l1": 1e-3}),
+    ("L2 1e-4", {"l2": 1e-4}),
+    ("L2 1e-3", {"l2": 1e-3}),
+    ("dropout 0.1", {"dropout": 0.1}),
+    ("dropout 0.2", {"dropout": 0.2}),
+    ("momentum 0.5", {"momentum": 0.5}),
+    ("momentum 0.9", {"momentum": 0.9}),
+]
+
 
 def roda(kw, train_t, val_t, seed, epocas, width, depth):
     torch.manual_seed(seed)
@@ -50,22 +63,25 @@ COMPARAR = ["baseline", "L1 1e-4", "L2 1e-5", "dropout 0.1", "momentum 0.3", "L1
 
 PAINEIS = ["baseline", "L2 1e-4", "L2 1e-2", "L1 1e-3", "dropout 0.1", "momentum 0.9"]
 
+COMPARAR_REDUZIDA = ["baseline", "L1 1e-4", "L2 1e-4", "dropout 0.1", "momentum 0.9"]
 
-def plota(historicos, width, depth, epocas):
-    fig, axes = plt.subplots(2, 3, figsize=(15, 7), sharey=True)
+
+def plota(historicos, nome_base, epocas, paineis, comparar):
+    linhas = -(-len(paineis) // 3)
+    fig, axes = plt.subplots(linhas, 3, figsize=(15, 3.5 * linhas), sharey=True)
     base = historicos["baseline"]
     ylim = (0.5 * np.nanmin(base), 10 * np.nanmax(base[0]))
-    for ax, nome in zip(axes.ravel(), PAINEIS):
+    for ax, nome in zip(axes.ravel(), paineis):
         curvas(ax, historicos[nome], nome, ylim)
+    for ax in axes.ravel()[len(paineis):]:
+        ax.axis("off")
     fig.tight_layout()
-    saida = f"ablacao_{width}x{depth}_{epocas}.png"
+    saida = f"ablacao_{nome_base}.png"
     fig.savefig(saida, dpi=130)
 
     # comparacao direta das curvas de validacao num unico eixo
     fig2, ax = plt.subplots(figsize=(8, 5))
-    for nome in COMPARAR:
-        if nome not in historicos:
-            continue
+    for nome in comparar:
         v = historicos[nome][:, 1]
         ax.plot(np.arange(len(suave(v))) + 50, suave(v), lw=1.5,
                 label=nome, ls="-" if nome == "baseline" else "--")
@@ -74,7 +90,7 @@ def plota(historicos, width, depth, epocas):
     ax.set_xlim(0, epocas)
     ax.legend(fontsize=9)
     fig2.tight_layout()
-    saida2 = f"ablacao_comparacao_{width}x{depth}_{epocas}.png"
+    saida2 = f"ablacao_comparacao_{nome_base}.png"
     fig2.savefig(saida2, dpi=130)
     print(f"\ngraficos salvos em {saida} e {saida2}")
 
@@ -85,22 +101,27 @@ def main():
     ap.add_argument("--width", type=int, default=WIDTH)
     ap.add_argument("--depth", type=int, default=DEPTH)
     ap.add_argument("--replot", action="store_true", help="regera o grafico a partir dos historicos salvos")
+    ap.add_argument("--reduzida", action="store_true", help="usa o conjunto menor de configuracoes")
     args = ap.parse_args()
     epocas, width, depth = args.epocas, args.width, args.depth
+    configs = REDUZIDA if args.reduzida else CONFIGS
+    paineis = [n for n, _ in REDUZIDA] if args.reduzida else PAINEIS
+    comparar = COMPARAR_REDUZIDA if args.reduzida else COMPARAR
+    nome_base = f"{width}x{depth}_{epocas}" + ("_reduzida" if args.reduzida else "")
 
     tr, va, te = load_splits()
     sc = Scaler(tr)
     train_t, val_t = sc.to_tensors(tr), sc.to_tensors(va)
 
     print(f"rede {width}x{depth}, {epocas} epocas, {len(SEEDS)} seeds por configuracao\n")
-    cache = f"historicos_{width}x{depth}_{epocas}.npz"
+    cache = f"historicos_{nome_base}.npz"
     if args.replot:
         historicos = dict(np.load(cache))
-        plota(historicos, width, depth, epocas)
+        plota(historicos, nome_base, epocas, paineis, comparar)
         return
 
     resultados, historicos, todos = {}, {}, {}
-    for nome, kw in CONFIGS:
+    for nome, kw in configs:
         execucoes = [roda(kw, train_t, val_t, s, epocas, width, depth) for s in SEEDS]
         historicos[nome] = execucoes[0][1]
         for i, (_, h) in enumerate(execucoes):
@@ -118,6 +139,8 @@ def main():
 
     print("\nmelhor de cada familia por MSE de teste:")
     for fam in ("L1", "L2", "dropout", "momentum", "+"):
+        if not any(fam in k if fam == "+" else k.startswith(fam) for k in resultados):
+            continue
         if fam == "+":
             cand = {k: v for k, v in resultados.items() if "+" in k and np.isfinite(v["MSE"])}
         else:
@@ -132,7 +155,7 @@ def main():
 
     np.savez_compressed(cache, **historicos)
     np.savez_compressed(cache.replace(".npz", "_seeds.npz"), **todos)
-    plota(historicos, width, depth, epocas)
+    plota(historicos, nome_base, epocas, paineis, comparar)
 
 
 if __name__ == "__main__":

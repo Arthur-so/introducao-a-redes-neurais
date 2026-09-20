@@ -242,6 +242,50 @@ Cada configuração foi executada com \textbf{3 sementes} e os valores reportado
 \label{fig:parity}
 \end{figure}
 
+\subsection{Estudo Complementar: Ablação em Rede Sobredimensionada}
+\label{sec:complementar}
+
+Como nenhum componente melhorou o \textit{baseline}, investigou-se se isso se mantém quando a rede possui \textbf{mais capacidade excedente}. Repetiu-se a ablação numa rede \textbf{128$\times$3} (33.409 parâmetros, 3,9$\times$ o \textit{baseline}), mantendo \textbf{idênticos todos os demais hiperparâmetros} --- ReLU, $\eta = 0{,}01$, lote 8, 10.000 épocas e as mesmas sementes --- de modo que a capacidade seja a única variável alterada. A 128$\times$3 é a base deste estudo, e as ablações não alteram sua arquitetura. Usou-se uma grade reduzida, com dois valores por componente e sem combinações (Tabela~\ref{tab:complementar}).
+
+\begin{table}[h]
+\centering
+\small
+\caption{Ablação na rede 128$\times$3 (3 sementes). MSE e $R^2$ no teste, em escala original; erro de validação na época final, em escala padronizada, com desvio entre sementes e teste $t$ de Welch contra a base 128$\times$3 ($|t| \gtrsim 2$ indica diferença significativa).}
+\label{tab:complementar}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Configuração} & \textbf{MSE teste} & \textbf{$R^2$ teste} & \textbf{Val. final} & \textbf{$t$ (val.)} \\
+\midrule
+\textit{Baseline 64$\times$3 (referência)} & \textit{0,3527} & \textit{0,316} & \textit{0,947} & --- \\
+\midrule
+\textbf{Base 128$\times$3}   & \textbf{0,3906} & \textbf{0,242} & $\mathbf{1{,}002 \pm 0{,}007}$ & --- \\
+L1 $\lambda = 10^{-4}$       & 0,3933 & 0,237 & $1{,}006 \pm 0{,}014$ & $+0{,}52$ \\
+L1 $\lambda = 10^{-3}$       & 0,4185 & 0,188 & $1{,}128 \pm 0{,}146$ & $+1{,}50$ \\
+L2 $\lambda = 10^{-4}$       & 0,3852 & 0,253 & $1{,}000 \pm 0{,}007$ & $-0{,}29$ \\
+L2 $\lambda = 10^{-3}$       & 0,3871 & 0,249 & $1{,}011 \pm 0{,}018$ & $+0{,}79$ \\
+Dropout $p = 0{,}1$          & 0,3892 & 0,245 & $0{,}988 \pm 0{,}015$ & $-1{,}42$ \\
+Dropout $p = 0{,}2$          & 0,4014 & 0,221 & $1{,}305 \pm 0{,}033$ & $+15{,}64$ \\
+Momentum $\beta = 0{,}5$     & 0,3730 & 0,276 & $0{,}988 \pm 0{,}020$ & $-1{,}12$ \\
+Momentum $\beta = 0{,}9$     & 0,3702 & 0,282 & $1{,}046 \pm 0{,}014$ & $+4{,}76$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{ablacao_comparacao_128x3_10000_reduzida.png}
+\caption{Curvas de validação na rede 128$\times$3: base contra componentes aditivados.}
+\label{fig:complementar}
+\end{figure}
+
+\textbf{A capacidade excedente piora a generalização.} Sem nenhum componente, a 128$\times$3 tem MSE de teste 11\% maior que o do \textit{baseline} 64$\times$3 (0,3906 contra 0,3527), confirmando o sobreajuste adicional.
+
+\textbf{A direção do efeito da regularização se inverte.} Na 64$\times$3, todos os componentes empataram com o \textit{baseline} ou o pioraram. Na 128$\times$3, \textit{dropout} $p = 0{,}1$, momentum $\beta = 0{,}5$ e L2 $\lambda = 10^{-4}$ ficam à frente da base \textbf{simultaneamente na validação e no teste} --- comportamento coerente com a teoria: havendo capacidade sobrando, a regularização passa a ter o que conter. Entretanto, \textbf{nenhuma dessas melhorias é estatisticamente significativa} ($|t| \leq 1{,}42$): com três sementes, trata-se de uma tendência na direção esperada, não de um ganho demonstrado.
+
+\textbf{O momentum $\beta = 0{,}9$ apresenta resultados contraditórios.} É o melhor no teste (MSE 0,3702, $-5\%$), mas significativamente pior na validação ($t = 4{,}76$). A Figura~\ref{fig:complementar} explica a discrepância: ele atinge o patamar mínimo por volta da época 800 --- contra cerca de 5.000 da base --- e volta a subir ao final do treino, justamente na janela em que o erro de validação final é medido. Pelo critério de seleção adotado, ele não pode ser declarado superior.
+
+\textbf{Conclusão do estudo complementar.} Mesmo a melhor variante da rede sobredimensionada (0,3702) é \textbf{pior que o \textit{baseline} 64$\times$3 sem componente algum} (0,3527). Regularizar uma rede grande demais não compensa a escolha adequada de capacidade: neste problema, dimensionar a rede corretamente foi mais eficaz do que qualquer técnica de regularização aplicada a uma rede superdimensionada.
+
 \section{Discussão e Lições Aprendidas}
 
 \textbf{Sobreajuste no regime de poucos dados.} Com 30 amostras de treino, o fator limitante não é a arquitetura, e sim o volume de dados. A evidência é direta: arquiteturas de 97 a 33.409 parâmetros --- uma variação de 344$\times$ --- produziram MSE de teste entre 0,377 e 0,407, uma diferença de cerca de 1\% da amplitude de $y$. Nenhuma escolha de topologia rompe esse teto.
