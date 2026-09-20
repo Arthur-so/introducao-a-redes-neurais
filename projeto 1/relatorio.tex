@@ -1,0 +1,279 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{tabularx}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{1.2ex plus 0.5ex minus .2ex}{0.6ex}
+\titlespacing*{\subsection}{0pt}{1.0ex plus 0.4ex minus .2ex}{0.4ex}
+
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \textbf{Projeto 1: Regressão com MLP e Estudo de Ablação}} \\[0.35em]
+    {\large Disciplina: Introdução às Redes Neurais Artificiais} \\[0.3em]
+    \textbf{Autor:} Arthur Santos de Oliveira (RA: 156297) \\[0.2em]
+    \textbf{Repositório / Código Reprodutível:} \url{https://github.com/Arthur-so/introducao-a-redes-neurais}
+\end{center}
+\vspace{-0.5em}
+\hrule
+\vspace{0.8em}
+
+\section{Configuração Experimental e Reprodutibilidade}
+
+\subsection{Pré-processamento e Partição dos Dados}
+
+O conjunto contém 300 pares $(x, y)$, com $x$ uniformemente espaçado em $[0, 10]$ e $y \in [-1{,}49,\ 2{,}66]$. A partição seguiu estritamente a proporção exigida: \textbf{10\% treino (30 pontos)}, \textbf{10\% validação (30 pontos)} e \textbf{80\% teste (240 pontos)}, por permutação aleatória com semente fixa (42).
+
+Aplicou-se \textbf{padronização $z$-score} a $x$ e a $y$. Sem ela, o SGD padrão converge de forma extremamente lenta: não havendo momentum nem taxa adaptativa, nenhum mecanismo compensa uma entrada mal escalonada. A média e o desvio foram calculados (\textit{fit}) \textbf{exclusivamente sobre os 30 pontos de treino}, aplicando-se somente a transformação às partições de validação e teste, evitando vazamento de dados. Todas as métricas reportadas foram convertidas de volta à escala original de $y$ (fator $\sigma^2_{\text{treino}} = 0{,}3688$).
+
+A Tabela~\ref{tab:particoes} mostra que as partições têm dispersões distintas, o que tem consequência direta na interpretação: como o $R^2$ é normalizado pela variância do conjunto em que é medido, \textbf{valores de $R^2$ não são comparáveis entre partições}.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Estatísticas das partições.}
+\label{tab:particoes}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Partição} & \textbf{$n$} & \textbf{Média de $y$} & \textbf{Desvio de $y$} \\
+\midrule
+Treino    & 30  & 0,432 & 0,607 \\
+Validação & 30  & 0,415 & 0,875 \\
+Teste     & 240 & 0,476 & 0,718 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Referências de desempenho.} Antes de treinar qualquer rede, estabeleceram-se três referências, sem as quais um MSE isolado não é interpretável (valores na escala padronizada, medidos na validação): prever sempre a média do treino resulta em MSE $= 2{,}078$ (piso de utilidade); uma rede sobredimensionada com Adam, treinada apenas nos 30 pontos, atinge $0{,}903$; e a mesma rede treinada nos 300 pontos atinge $0{,}239$, o que estima o \textbf{piso de ruído} dos dados. O desvio do ruído foi estimado independentemente em $\sigma \approx 0{,}42$ pelas diferenças entre pontos consecutivos. Conclui-se que o \textbf{$R^2$ máximo alcançável neste conjunto situa-se entre 0,67 e 0,83}: o restante é ruído irreprodutível.
+
+\subsection{Definição de ``Vanilla'' e Conformidade}
+
+O enunciado exige uma ``MLP básica'' e proíbe ``momentum, regularizações, etc.'' no \textit{baseline}. Adotou-se a seguinte fronteira: são \textbf{hiperparâmetros livres} o número de camadas e neurônios, a função de ativação, a taxa de aprendizado, o tamanho de lote e o número de épocas --- todos fazem parte de ``encontrar o melhor modelo''. São \textbf{componentes proibidos} momentum, L1, L2, \textit{dropout}, agendamento de taxa, normalização em lote e otimizadores adaptativos.
+
+\textbf{O \textit{early stopping} foi classificado como componente proibido e removido do \textit{baseline}.} Interromper o treino (ou restaurar os pesos da melhor época) com base no erro de validação é uma técnica de regularização, tratada como tal na literatura padrão~\cite{goodfellow}. Uma versão preliminar deste trabalho restaurava os pesos da melhor época; ao identificar a inconsistência com o enunciado, o mecanismo foi removido e \textbf{toda a seleção de hiperparâmetros foi refeita}, pois havia sido conduzida sob protocolo distinto. A mudança não foi cosmética: a arquitetura, a ativação, a taxa de aprendizado, o lote e o orçamento de épocas \textbf{todos se alteraram} (Seção~\ref{sec:trajetoria}). No protocolo final, os pesos entregues são os da \textbf{última época}, com orçamento fixo e idêntico para todas as configurações.
+
+Registram-se duas fronteiras discutíveis, por transparência. Primeira, a padronização dos dados: classificada como pré-processamento, não como componente do modelo, pois não restringe a capacidade da rede nem altera a função objetivo. Segunda, a escolha do número de épocas pela validação: distingue-se do \textit{early stopping} por ser um \textbf{orçamento fixo}, idêntico para todas as configurações e sementes, e não um critério adaptativo aplicado a cada execução. A Seção~\ref{sec:ablacao} mostra que essa distinção tem consequências práticas relevantes.
+
+\subsection{Otimização Empírica do Modelo Baseline}
+
+A busca foi conduzida por \textbf{varredura em grade}, em estágios sucessivos para evitar explosão combinatória, avaliando-se sempre pelo \textbf{menor erro de validação na época final}. O conjunto de teste não participou de nenhuma decisão de modelagem.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Espaço amostrado e configuração final da MLP Baseline (Vanilla).}
+\label{tab:baseline_hiper}
+\begin{tabularx}{\textwidth}{lXl}
+\toprule
+\textbf{Hiperparâmetro} & \textbf{Valores Explorados} & \textbf{Escolhido (Vanilla)} \\
+\midrule
+Topologia das Camadas & 1, 2 e 3 camadas; 4, 8, 16, 32, 64 e 128 neurônios (18 combinações) & $1 \rightarrow 64 \rightarrow 64 \rightarrow 64 \rightarrow 1$ \\
+Formato das Camadas & Uniforme, afunilado, expansivo, gargalo, 4 camadas (11 formatos) & Uniforme \\
+Função de Ativação & ReLU, Tanh & ReLU \\
+Otimizador & SGD padrão (\textbf{momentum} $= 0{,}0$, \textbf{weight decay} $= 0{,}0$) & SGD ($\eta = 0{,}01$) \\
+Taxa de Aprendizado & 0,01; 0,03; 0,1; 0,3 & 0,01 \\
+Tamanho do Lote & 8, 16, 30 & 8 \\
+Número de Épocas & 5.000; 10.000; 15.000; 20.000; 25.000; 30.000 & 10.000 \\
+Função de Custo & Erro Quadrático Médio & MSELoss \\
+Critério de Parada & \textbf{Nenhum} --- orçamento fixo de épocas (ver Seção 1.2) & Últimos pesos \\
+Semente Aleatória & Partição: 42. Inicialização: 0, 1, 2 (idênticas em todas as configurações) & --- \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+O modelo final possui \textbf{8.513 parâmetros} para 30 amostras de treino --- 284 parâmetros por amostra, o que torna o sobreajuste inevitável e central à análise.
+
+\textbf{Estágio 1 --- Topologia.} As 18 combinações de largura e profundidade foram avaliadas com 3 sementes e as cinco melhores reconfirmadas com 8 sementes (Tabela~\ref{tab:arquiteturas}). As três primeiras \textbf{empatam estatisticamente} (teste $t$ de Welch contra a líder: $t = 1{,}17$ e $t = 1{,}18$), enquanto a 16$\times$3 ($t = 2{,}62$) e a 32$\times$3 ($t = 4{,}71$) são significativamente piores. Selecionou-se a \textbf{64$\times$3} entre as empatadas por apresentar o \textbf{menor desvio entre sementes no teste de toda a varredura} ($\pm 0{,}013$), ou seja, maior reprodutibilidade --- critério natural quando o desempenho empata. Registra-se que o menor erro de validação absoluto foi da 128$\times$3, e que a escolha repousa sobre empate estatístico somado a reprodutibilidade, não sobre superioridade medida.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Erros de treino e validação das arquiteturas candidatas a \textit{baseline} (8 sementes, escala padronizada; MSE de teste incluído apenas para referência, não utilizado na seleção).}
+\label{tab:arquiteturas}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Arquitetura} & \textbf{Parâmetros} & \textbf{MSE treino} & \textbf{MSE validação} & \textbf{MSE teste} \\
+\midrule
+128$\times$3          & 33.409 & 0,12 & $1{,}029 \pm 0{,}087$ & $0{,}377 \pm 0{,}033$ \\
+8$\times$2            & 97     & 0,41 & $1{,}075 \pm 0{,}070$ & $0{,}404 \pm 0{,}034$ \\
+\textbf{64$\times$3}  & \textbf{8.513} & \textbf{0,16} & $\mathbf{1{,}098 \pm 0{,}141}$ & $\mathbf{0{,}377 \pm 0{,}013}$ \\
+16$\times$3           & 593    & 0,29 & $1{,}182 \pm 0{,}141$ & $0{,}384 \pm 0{,}043$ \\
+32$\times$3           & 2.209  & 0,21 & $1{,}240 \pm 0{,}092$ & $0{,}407 \pm 0{,}036$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Estágio 2 --- Formato das camadas.} O enunciado não exige largura uniforme, e tratá-la como valor único aplicado a todas as camadas é uma suposição que reduz a busca de $N$ dimensões para 2. Ela foi testada explicitamente: 11 formatos alternativos, 6 sementes cada. O uniforme (64-64-64; validação $1{,}045 \pm 0{,}051$) \textbf{empata com o melhor formato encontrado}, o gargalo 64-16-64 ($1{,}033 \pm 0{,}068$; $t = 0{,}35$), e os MSE de teste são idênticos até a quarta casa decimal (0,3767 contra 0,3764). Um achado contraria o senso comum: os \textbf{formatos afunilados foram sistematicamente piores} (96-48-24: 1,277; 64-32-16: 1,329; 128-64-32-16: 1,337), apesar de a intuição usual sugerir que camadas largas extraiam características e as seguintes as comprimam até a saída escalar.
+
+\textbf{Estágio 3 --- Ativação, taxa, lote e épocas.} Avaliaram-se 12 combinações com 4 sementes, cada uma em 6 orçamentos de época, e os finalistas foram reconfirmados com 8 sementes. \textbf{As três primeiras posições foram todas ReLU}; a diferença para o melhor Tanh não é significativa ($t = 1{,}19$), mas o ReLU apresenta desvio entre sementes de 0,03--0,04 contra 0,11--0,14 do Tanh, sendo portanto cerca de \textbf{três vezes mais reprodutível}. Com três camadas, a saturação do Tanh atenua os gradientes retropropagados (gradiente evanescente), efeito que o ReLU não sofre por ter derivada unitária na região ativa.
+
+\textbf{O orçamento de épocas revelou-se hiperparâmetro de primeira ordem.} Sem \textit{early stopping}, quase toda combinação apresenta curva de validação em U --- o erro melhora, atinge um mínimo e volta a subir (Tabela~\ref{tab:epocas}). Treinar além do mínimo produz apenas sobreajuste.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Erro de validação por orçamento de épocas (rede 64$\times$3, 4 sementes, escala padronizada). O mínimo de cada linha está em negrito.}
+\label{tab:epocas}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Configuração} & \textbf{5.000} & \textbf{10.000} & \textbf{15.000} & \textbf{20.000} & \textbf{25.000} & \textbf{30.000} \\
+\midrule
+ReLU, $\eta = 0{,}01$, lote 8  & 1,076 & \textbf{0,933} & 0,951 & 0,997 & 1,037 & 1,047 \\
+Tanh, $\eta = 0{,}03$, lote 8  & 1,087 & 0,957 & \textbf{0,950} & 0,990 & 1,016 & 1,036 \\
+Tanh, $\eta = 0{,}01$, lote 16 & 1,456 & 1,267 & 1,158 & 1,128 & 1,083 & \textbf{0,991} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Observa-se ainda uma \textbf{inversão instrutiva}: $\eta = 0{,}1$ era a melhor taxa enquanto havia \textit{early stopping} --- convergir rápido não tinha custo, pois os melhores pesos eram restaurados ao final. Sem esse mecanismo, taxa alta significa sobreajustar mais depressa, e $\eta = 0{,}1$ tornou-se a pior opção testada (validação de 1,26 a 1,50). Hiperparâmetros não são independentes do protocolo de treino.
+
+\section{Dinâmica de Treinamento e Convergência}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{baseline.png}
+\caption{Esquerda: evolução do MSE de treino e validação do \textit{baseline} (escala padronizada, eixo logarítmico). A curva clara é o valor bruto por época e a linha escura é a média móvel de 101 épocas. Direita: ajuste obtido sobre os dados de teste.}
+\label{fig:loss_baseline}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{ablacao_comparacao_64x3_10000.png}
+\caption{Comparação direta das curvas de validação: \textit{baseline} contra os modelos com componentes adicionais.}
+\label{fig:loss_ablation}
+\end{figure}
+
+\textbf{Estabilidade do SGD.} A alta variância visível nas curvas brutas da Figura~\ref{fig:loss_baseline} decorre da combinação de lote pequeno (8 amostras) com conjunto de treino diminuto (30 pontos): são apenas 4 atualizações por época, cada uma baseada em uma amostra ruidosa do gradiente. Sem momentum, não há acumulação de direção que suavize essas oscilações --- é precisamente essa a função que o momentum desempenharia. A taxa de aprendizado mostrou-se o fator decisivo de estabilidade: em experimentos com $\eta = 0{,}3$ o treino \textbf{divergiu numericamente em todas as sementes}, e com $\eta = 0{,}1$ combinado a momentum $\geq 0{,}7$ em arquiteturas de três camadas observaram-se divergências (perda tendendo a NaN). A escolha de $\eta = 0{,}01$ mantém o treino em regime estável em toda a faixa de momentum testada.
+
+\textbf{Sobreajuste.} O descolamento entre treino e validação é precoce e permanente. A perda de treino cai continuamente até $\approx 0{,}16$ (escala padronizada), enquanto a validação estabiliza em torno de $0{,}95$ a partir da época 4.000 --- uma razão de aproximadamente 6$\times$. Na escala original, isso corresponde a $R^2 = 0{,}843$ no treino contra $0{,}288$ no teste. Com 284 parâmetros por amostra de treino, a rede tem capacidade de sobra para memorizar os 30 pontos, e o faz.
+
+\textbf{Aceleração com momentum.} O momentum reduziu substancialmente o número de épocas até a convergência: de 7.939 no \textit{baseline} para 2.884 com $\beta = 0{,}9$, uma redução de 64\% (Tabela~\ref{tab:ablation_metrics}), confirmando seu papel como acelerador. Entretanto, \textbf{essa aceleração não se converteu em melhor generalização}: o erro final permaneceu estatisticamente indistinguível do \textit{baseline}. Em um experimento anterior, com orçamento de épocas insuficiente, o momentum aparentava ser o melhor componente de todos (melhora de 11\% no MSE de teste); ao estender o orçamento, a vantagem desapareceu por completo, revelando que ela era artefato de subtreino do \textit{baseline}, e não mérito do componente.
+
+\section{Estudo de Ablação e Desempenho no Conjunto de Teste}
+\label{sec:ablacao}
+
+Para isolar o efeito de cada componente, \textbf{a arquitetura foi mantida idêntica} à da Tabela~\ref{tab:baseline_hiper} --- mesmas camadas, mesmos neurônios, mesma ativação --- variando-se exclusivamente o componente em estudo. A comparação é \textbf{pareada}: verificou-se empiricamente que \textit{baseline} e ablações partem de \textbf{pesos iniciais idênticos} e, para L1, L2 e momentum, percorrem a \textbf{mesma sequência de minilotes}, sendo os resultados reprodutíveis bit a bit. A única exceção é o \textit{dropout}, que consome números aleatórios ao sortear máscaras e portanto diverge da sequência a partir do primeiro sorteio --- limitação inerente ao método.
+
+Cada configuração foi executada com \textbf{3 sementes} e os valores reportados são médias. As grades de intensidade foram construídas de modo a \textbf{cercar o ótimo}: o melhor valor deve ter vizinhos piores dos dois lados, caso contrário a grade estaria incompleta.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Estudo de ablação no conjunto de teste (240 pontos, 80\% dos dados). Médias de 3 sementes, métricas na escala original de $y$. ``Épocas até convergência'' é a primeira época em que a validação suavizada entra a 2\% do seu mínimo.}
+\label{tab:ablation_metrics}
+\begin{tabularx}{\textwidth}{Xccccc}
+\toprule
+\textbf{Modelo / Variação} & \textbf{MSE} & \textbf{RMSE} & \textbf{MAE} & \textbf{$R^2$} & \textbf{Épocas até conv.} \\
+\midrule
+\textbf{Baseline Vanilla (SGD sem momentum)} & \textbf{0,3527} & \textbf{0,5938} & \textbf{0,4620} & \textbf{0,3158} & 7.939 \\
+\midrule
+\multicolumn{6}{l}{\textit{Regularização L1}} \\
+\quad $\lambda = 10^{-5}$ & 0,3559 & 0,5964 & 0,4644 & 0,3096 & 7.501 \\
+\quad $\lambda = 10^{-4}$ & \underline{0,3520} & 0,5930 & 0,4614 & 0,3171 & 7.267 \\
+\quad $\lambda = 10^{-3}$ & 0,3844 & 0,6197 & 0,4900 & 0,2543 & 7.865 \\
+\midrule
+\multicolumn{6}{l}{\textit{Regularização L2 (weight decay)}} \\
+\quad $\lambda = 10^{-5}$ & 0,3553 & 0,5959 & 0,4642 & 0,3107 & 7.418 \\
+\quad $\lambda = 10^{-4}$ & 0,3569 & 0,5972 & 0,4648 & 0,3078 & 7.346 \\
+\quad $\lambda = 10^{-3}$ & 0,3590 & 0,5990 & 0,4673 & 0,3036 & 7.695 \\
+\quad $\lambda = 10^{-2}$ & 0,4503 & 0,6710 & 0,5295 & 0,1265 & 7.281 \\
+\midrule
+\multicolumn{6}{l}{\textit{Dropout}} \\
+\quad $p = 0{,}1$ & 0,3943 & 0,6277 & 0,5006 & 0,2351 & 8.959 \\
+\quad $p = 0{,}2$ & 0,4081 & 0,6386 & 0,5115 & 0,2083 & 7.655 \\
+\quad $p = 0{,}3$ & 0,4386 & 0,6622 & 0,5347 & 0,1492 & 7.231 \\
+\midrule
+\multicolumn{6}{l}{\textit{Momentum}} \\
+\quad $\beta = 0{,}3$ & 0,3534 & 0,5944 & 0,4624 & 0,3144 & 6.369 \\
+\quad $\beta = 0{,}5$ & 0,3571 & 0,5975 & 0,4650 & 0,3073 & 4.201 \\
+\quad $\beta = 0{,}7$ & 0,3603 & 0,6001 & 0,4629 & 0,3010 & 5.087 \\
+\quad $\beta = 0{,}9$ & 0,3588 & 0,5989 & 0,4638 & 0,3040 & \textbf{2.884} \\
+\midrule
+\multicolumn{6}{l}{\textit{Combinações dos melhores componentes}} \\
+\quad L1 $10^{-4}$ + mom. 0,3 & 0,3645 & 0,6036 & 0,4690 & 0,2930 & 5.373 \\
+\quad L2 $10^{-5}$ + mom. 0,3 & 0,3556 & 0,5962 & 0,4638 & 0,3102 & 5.789 \\
+\quad L1 $10^{-4}$ + L2 $10^{-5}$ & 0,3573 & 0,5975 & 0,4662 & 0,3069 & 7.716 \\
+\quad L1 + L2 + mom. & 0,3648 & 0,6039 & 0,4693 & 0,2924 & 5.124 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Nenhum componente melhorou o \textit{baseline}.} O melhor resultado da ablação é o L1 com $\lambda = 10^{-4}$, que reduz o MSE de teste em $0{,}0007$ --- dois décimos de por cento, indistinguível de ruído frente ao desvio entre sementes. As \textbf{combinações também não ajudaram}: a melhor delas (L2 + momentum) fica $0{,}0029$ acima do \textit{baseline}. E, diferentemente de experimentos preliminares, \textbf{as duas métricas concordam}: na validação --- o critério de seleção --- o \textit{baseline} apresenta o menor erro de todos ($0{,}9465$), abaixo de qualquer configuração aditivada.
+
+\textbf{Por que nada funcionou.} O orçamento de 10.000 épocas foi selecionado como o mínimo da curva de validação (Tabela~\ref{tab:epocas}), o que posiciona o \textit{baseline} exatamente no ponto de equilíbrio entre subajuste e sobreajuste. A regularização existe para \textit{deslocar} esse ponto; com o orçamento já ajustado ao mínimo, ela apenas restringe um modelo que já se encontra bem posicionado. Trata-se do mesmo mecanismo do \textit{early stopping} reaparecendo sob outra forma: \textbf{ajustar o número de épocas pela validação captura o benefício que a regularização ofereceria}. Esta é a consequência prática da fronteira discutível declarada na Seção 1.2 --- e sugere que, tivesse o orçamento sido fixado arbitrariamente em valor alto, L1 e L2 teriam apresentado ganho aparente que, na verdade, seria apenas compensação de um orçamento mal escolhido.
+
+\textbf{Comportamento por componente.} \textit{L1 e L2} são neutros em intensidades fracas e destrutivos em intensidades fortes: L2 com $\lambda = 10^{-2}$ derruba o $R^2$ de $0{,}32$ para $0{,}13$, pois a penalização passa a dominar a função objetivo e a rede subajusta. Não se observou a diferença qualitativa esperada entre L1 (indução à esparsidade) e L2 (atenuação de pesos grandes) --- ambos degradam de forma semelhante conforme $\lambda$ cresce, o que é coerente com o diagnóstico de que a limitação é o volume de dados, não a magnitude dos pesos. O \textit{dropout} é claramente prejudicial e piora \textbf{monotonicamente} com a taxa ($0{,}394 \rightarrow 0{,}408 \rightarrow 0{,}439$): ele força a rede a não depender de neurônios individuais, o que exige redundância, e redundância exige dados; com 30 amostras, remove sinal em vez de ruído. Ressalve-se que sua curva de validação \textbf{ainda descia ao final do orçamento} (Figura~\ref{fig:loss_ablation}), de modo que o orçamento fixo o penaliza.
+
+\textbf{O \textit{momentum} acelera sem melhorar.} É o resultado mais nítido da ablação: $\beta = 0{,}9$ atinge a convergência em \textbf{2.884 épocas contra 7.939 do \textit{baseline}}, uma redução de \textbf{64\%}, chegando entretanto a um erro final estatisticamente indistinguível ($0{,}3588$ contra $0{,}3527$). A Figura~\ref{fig:loss_ablation} mostra o fenômeno graficamente: a curva do momentum descende mais rapidamente nas primeiras épocas, mas o \textit{baseline} a alcança e termina ligeiramente abaixo. O momentum resolve o problema que o SGD puro possui --- lentidão em vales estreitos da superfície de erro --- sem alterar a qualidade da solução encontrada.
+
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{ablacao_64x3_10000.png}
+\caption{Evolução do treinamento para o \textit{baseline} e configurações representativas de cada componente.}
+\label{fig:ablacao_curvas}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{baseline_residuos.png}
+\caption{Esquerda: dispersão real \textit{versus} predito no teste, com a reta $y = x$. Direita: resíduos $(y - \hat{y})$ em função do valor predito.}
+\label{fig:parity}
+\end{figure}
+
+\section{Discussão e Lições Aprendidas}
+
+\textbf{Sobreajuste no regime de poucos dados.} Com 30 amostras de treino, o fator limitante não é a arquitetura, e sim o volume de dados. A evidência é direta: arquiteturas de 97 a 33.409 parâmetros --- uma variação de 344$\times$ --- produziram MSE de teste entre 0,377 e 0,407, uma diferença de cerca de 1\% da amplitude de $y$. Nenhuma escolha de topologia rompe esse teto.
+
+\textbf{Análise de resíduos.} A Figura~\ref{fig:parity} revela \textbf{atenuação} acentuada: o ajuste linear de predito contra real tem inclinação $0{,}463$, quando o ideal seria $1{,}0$, e as previsões cobrem apenas \textbf{60\% da amplitude real} ($[-1{,}17,\ 1{,}29]$ contra $[-1{,}49,\ 2{,}66]$). Os resíduos apresentam estrutura sistemática por faixa: $-0{,}242$ nos valores baixos de $y$, $+0{,}157$ nos médios e $+0{,}737$ nos altos. O modelo \textbf{subestima sistematicamente os extremos superiores}. Trata-se de regressão à média: sob ruído elevado ($\sigma \approx 0{,}42$) e poucos dados, prever próximo à média minimiza o erro quadrático esperado, ao custo de sacrificar as caudas. Esse padrão \textbf{persiste em todos os modelos regularizados} --- nenhuma das técnicas de ablação o corrigiu, pois nenhuma ataca sua causa, que é a escassez de dados.
+
+\textbf{Perspectiva realista de desempenho.} O $R^2$ de teste de 0,288 deve ser lido contra o teto estimado de 0,67--0,83 imposto pelo ruído dos dados. O modelo recupera, portanto, cerca de \textbf{40\% do sinal aprendível}, e não 29\% de um ideal de 100\%. O restante não é falha do modelo: é ruído irreprodutível.
+
+\subsection{Trajetória do Desenvolvimento e Revisões}
+\label{sec:trajetoria}
+
+Três decisões foram revistas durante o trabalho, e os motivos são instrutivos.
+
+\textbf{O \textit{early stopping} foi identificado como violação do enunciado.} Versões iniciais restauravam os pesos da melhor época de validação. Como as escolhas de hiperparâmetros haviam sido feitas sob esse protocolo, removê-lo exigiu refazer toda a seleção --- e ela de fato mudou: arquitetura de 32$\times$3 para 64$\times$3, ativação de Tanh para ReLU, taxa de 0,1 para 0,01, lote de 16 para 8 e orçamento de 30.000 para 10.000 épocas. A configuração final é \textbf{significativamente melhor} que a anterior na validação ($t = 2{,}63$), de modo que a correção de conformidade trouxe também ganho de desempenho.
+
+\textbf{A largura uniforme era suposição não declarada.} Detectada e testada explicitamente (Estágio 2), confirmou-se inofensiva --- mas isso só é afirmável porque foi medido.
+
+\textbf{Diferenças aparentes desapareceram ao aumentar o número de sementes.} Em três ocasiões uma configuração parecia superior com 3 sementes e perdia a vantagem com 6 ou 8. A arquitetura 16$\times$3, por exemplo, aparecia em segundo lugar (validação 1,037) e caiu para quarto (1,182) ao ser reavaliada. Por isso todas as decisões finais reportam desvio-padrão e teste $t$, e não apenas a média.
+
+\subsection{Limitações}
+
+\begin{itemize}
+    \item \textbf{Validação com 30 pontos é frágil} para seleção de modelos. As diferenças entre as arquiteturas do topo não são estatisticamente significativas, de modo que a escolha final repousa sobre empate somado a critério de reprodutibilidade. O remédio adequado seria \textbf{validação cruzada $k$-fold} sobre treino e validação, eliminando a dependência de um único corte; não foi realizada por custo computacional.
+    \item \textbf{A busca foi por estágios, não conjunta.} Trata-se de otimização por coordenadas com uma única passada, que não garante o ótimo global do espaço conjunto de hiperparâmetros.
+    \item \textbf{O orçamento fixo de épocas penaliza componentes de convergência mais lenta}, o \textit{dropout} em particular, cuja curva de validação ainda descia ao final do orçamento.
+    \item \textbf{Métricas de execução única.} Os gráficos ilustrativos provêm de uma semente; as tabelas de ablação usam média de três e são mais confiáveis.
+\end{itemize}
+
+\begin{thebibliography}{9}
+\bibitem{goodfellow}
+I.~Goodfellow, Y.~Bengio e A.~Courville.
+\textit{Deep Learning}. MIT Press, 2016. Capítulo 7.8, ``Early Stopping as a Regularizer''.
+\end{thebibliography}
+
+\end{document}

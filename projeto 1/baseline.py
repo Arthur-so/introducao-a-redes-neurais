@@ -35,6 +35,7 @@ def train(net, train_t, val_t, epochs=EPOCHS, lr=LR, batch=BATCH,
     xva, yva = val_t
     opt = torch.optim.SGD(net.parameters(), lr=lr, momentum=momentum, weight_decay=l2)
     mse = nn.MSELoss()
+    mae = nn.L1Loss()
     hist, best = [], (float("inf"), None)
     for _ in range(epochs):
         net.train()
@@ -47,7 +48,8 @@ def train(net, train_t, val_t, epochs=EPOCHS, lr=LR, batch=BATCH,
             opt.step()
         net.eval()
         with torch.no_grad():
-            hist.append((mse(net(xtr), ytr).item(), mse(net(xva), yva).item()))
+            hist.append((mse(net(xtr), ytr).item(), mse(net(xva), yva).item(),
+                         mae(net(xtr), ytr).item(), mae(net(xva), yva).item()))
         if restaurar_melhor and hist[-1][1] < best[0]:
             best = (hist[-1][1], copy.deepcopy(net.state_dict()))
     if restaurar_melhor:
@@ -153,7 +155,25 @@ def main():
     b.legend()
     fig.tight_layout()
     fig.savefig("baseline.png", dpi=130)
-    print("grafico salvo em baseline.png")
+
+    with torch.no_grad():
+        xte, _ = sc.to_tensors(te)
+        pred = sc.denorm_y(net(xte).numpy().ravel())
+    real = te[:, 1]
+    fig2, (c, d) = plt.subplots(1, 2, figsize=(11, 4))
+    lims = [min(real.min(), pred.min()) - 0.1, max(real.max(), pred.max()) + 0.1]
+    c.scatter(real, pred, s=12, alpha=0.6)
+    c.plot(lims, lims, "k--", lw=1, label="y = x")
+    c.set(xlabel="y real", ylabel="y predito", xlim=lims, ylim=lims,
+          title="Paridade no conjunto de teste")
+    c.legend()
+    res = real - pred
+    d.scatter(pred, res, s=12, alpha=0.6)
+    d.axhline(0, color="k", ls="--", lw=1)
+    d.set(xlabel="y predito", ylabel="residuo (y - y_pred)", title="Residuos no conjunto de teste")
+    fig2.tight_layout()
+    fig2.savefig("baseline_residuos.png", dpi=130)
+    print("graficos salvos em baseline.png e baseline_residuos.png")
 
 
 if __name__ == "__main__":

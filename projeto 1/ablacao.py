@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from baseline import DEPTH, EPOCHS, WIDTH, curvas, fmt, metrics, mlp, train
+from baseline import DEPTH, EPOCHS, WIDTH, curvas, fmt, metrics, mlp, suave, train
 from data import load_splits, Scaler
 
 SEEDS = (0, 1, 2)
@@ -25,6 +25,10 @@ CONFIGS = [
     ("momentum 0.5", {"momentum": 0.5}),
     ("momentum 0.7", {"momentum": 0.7}),
     ("momentum 0.9", {"momentum": 0.9}),
+    ("L1+mom", {"l1": 1e-4, "momentum": 0.3}),
+    ("L2+mom", {"l2": 1e-5, "momentum": 0.3}),
+    ("L1+L2", {"l1": 1e-4, "l2": 1e-5}),
+    ("L1+L2+mom", {"l1": 1e-4, "l2": 1e-5, "momentum": 0.3}),
 ]
 
 
@@ -35,6 +39,14 @@ def roda(kw, train_t, val_t, seed, epocas, width, depth):
                  **{k: v for k, v in kw.items() if k != "dropout"})
     return net, hist
 
+
+def epoca_convergencia(hist, tol=1.02, janela=201):
+    """Primeira epoca em que a validacao suavizada entra a 2% do seu minimo."""
+    s = np.convolve(hist[:, 1], np.ones(janela) / janela, "valid")
+    return int(np.argmax(s <= s.min() * tol)) + janela // 2
+
+
+COMPARAR = ["baseline", "L1 1e-4", "L2 1e-5", "dropout 0.1", "momentum 0.3", "L1+L2+mom"]
 
 PAINEIS = ["baseline", "L2 1e-4", "L2 1e-2", "L1 1e-3", "dropout 0.1", "momentum 0.9"]
 
@@ -48,7 +60,23 @@ def plota(historicos, width, depth, epocas):
     fig.tight_layout()
     saida = f"ablacao_{width}x{depth}_{epocas}.png"
     fig.savefig(saida, dpi=130)
-    print(f"\ngrafico salvo em {saida}")
+
+    # comparacao direta das curvas de validacao num unico eixo
+    fig2, ax = plt.subplots(figsize=(8, 5))
+    for nome in COMPARAR:
+        if nome not in historicos:
+            continue
+        v = historicos[nome][:, 1]
+        ax.plot(np.arange(len(suave(v))) + 50, suave(v), lw=1.5,
+                label=nome, ls="-" if nome == "baseline" else "--")
+    ax.set(xlabel="epoca", ylabel="MSE de validacao (normalizado)", yscale="log",
+           title="Validacao: baseline vs. componentes aditivados")
+    ax.set_xlim(0, epocas)
+    ax.legend(fontsize=9)
+    fig2.tight_layout()
+    saida2 = f"ablacao_comparacao_{width}x{depth}_{epocas}.png"
+    fig2.savefig(saida2, dpi=130)
+    print(f"\ngraficos salvos em {saida} e {saida2}")
 
 
 def main():
@@ -82,17 +110,21 @@ def main():
         med = {k: np.mean([metrics(n, te, sc)[k] for n, _ in ok]) if ok else float("nan")
                for k in ("MAE", "MSE", "RMSE", "R2")}
         med["val"] = np.mean([h[-500:, 1].mean() for _, h in ok]) if ok else float("nan")
+        med["conv"] = np.mean([epoca_convergencia(h) for _, h in ok]) if ok else float("nan")
         med["div"] = len(execucoes) - len(ok)
         resultados[nome] = med
         aviso = f"  DIVERGIU em {med['div']}/{len(SEEDS)} seeds" if med["div"] else ""
-        print(fmt(nome, med) + f"  val_final={med['val']:.4f}" + aviso)
+        print(fmt(nome, med) + f"  val_final={med['val']:.4f}  conv={med['conv']:.0f}" + aviso)
 
     print("\nmelhor de cada familia por MSE de teste:")
-    for fam in ("L1", "L2", "dropout", "momentum"):
-        cand = {k: v for k, v in resultados.items()
-                if k.startswith(fam) and np.isfinite(v["MSE"])}
+    for fam in ("L1", "L2", "dropout", "momentum", "+"):
+        if fam == "+":
+            cand = {k: v for k, v in resultados.items() if "+" in k and np.isfinite(v["MSE"])}
+        else:
+            cand = {k: v for k, v in resultados.items()
+                    if k.startswith(fam) and "+" not in k and np.isfinite(v["MSE"])}
         if not cand:
-            print(f"  {fam:<14} todas as configuracoes divergiram")
+            print(f"  {'combinacoes' if fam == '+' else fam:<14} todas as configuracoes divergiram")
             continue
         melhor = min(cand, key=lambda k: cand[k]["MSE"])
         delta = cand[melhor]["MSE"] - resultados["baseline"]["MSE"]
