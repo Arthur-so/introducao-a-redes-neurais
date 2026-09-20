@@ -12,9 +12,9 @@ from data import load_splits, Scaler
 WIDTH, LR, BATCH, EPOCHS = 8, 0.1, 8, 8000
 
 
-def mlp(width=WIDTH, dropout=0.0):
+def mlp(width=WIDTH, depth=2, dropout=0.0):
     layers, d = [], 1
-    for _ in range(2):
+    for _ in range(depth):
         layers += [nn.Linear(d, width), nn.Tanh()]
         if dropout:
             layers.append(nn.Dropout(dropout))
@@ -68,11 +68,16 @@ def suave(v, k=101):
     return np.convolve(v, np.ones(k) / k, "valid")
 
 
-def curvas(ax, hist, titulo):
+def curvas(ax, hist, titulo, ylim=None):
     for col, cor, nome in ((0, "tab:blue", "treino"), (1, "tab:orange", "validacao")):
         ax.plot(hist[:, col], color=cor, alpha=0.15, lw=0.5)
         ax.plot(np.arange(len(suave(hist[:, col]))) + 50, suave(hist[:, col]), color=cor, label=nome)
+    if not np.isfinite(hist).all():
+        titulo += " (divergiu)"
     ax.set(xlabel="epoca", ylabel="MSE (normalizado)", yscale="log", title=titulo)
+    ax.set_xlim(0, len(hist))
+    if ylim:
+        ax.set_ylim(*ylim)
     ax.legend()
 
 
