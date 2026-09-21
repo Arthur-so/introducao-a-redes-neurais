@@ -12,6 +12,7 @@
 \usepackage{titlesec}
 \usepackage{tabularx}
 \usepackage[section]{placeins}
+\usepackage{float}
 
 \hypersetup{
     colorlinks=true,
@@ -74,7 +75,7 @@ O \textit{baseline} é uma MLP básica treinada com \textbf{SGD padrão}, sem Ad
 
 A busca empírica foi feita em \textbf{três etapas}, sempre escolhendo pelo \textbf{menor erro na validação} (o teste não foi usado em nenhuma escolha): (1) número de camadas e de neurônios; (2) formato das camadas; (3) função de ativação, taxa de aprendizado, tamanho de lote e número de épocas. Em cada etapa, os hiperparâmetros das outras etapas ficaram fixos. A Tabela~\ref{tab:baseline_hiper} resume os valores testados e a configuração escolhida.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \small
 \caption{Valores explorados e configuração final do \textit{baseline}.}
