@@ -72,16 +72,16 @@ Teste     & 240 & 0,476 & 0,718 \\
 \small
 \caption{Referências de desempenho, medidas no conjunto de teste e expressas na escala original de $y$. O Adam foi empregado apenas nestas medições auxiliares, jamais em modelos entregues: o objetivo era estimar o que os \textit{dados} permitem, independentemente do otimizador.}
 \label{tab:referencias}
-\begin{tabular}{lcl}
+\begin{tabularx}{\textwidth}{XcX}
 \toprule
 \textbf{Referência} & \textbf{MSE} & \textbf{Interpretação} \\
 \midrule
 Prever sempre a média do treino & 0,518 & Modelo trivial; ignora $x$ por completo \\
-Rede sobredimensionada + Adam, apenas os 30 pontos de treino & 0,355 & Teto imposto pela escassez de dados \\
-Rede sobredimensionada + Adam, todos os 300 pontos & 0,142 & \textbf{Piso de ruído}: nenhum modelo vai abaixo \\
-\quad \textit{estimativa independente, pela dispersão entre vizinhos} & \textit{0,173} & \\
+Rede grande + Adam, apenas os 30 pontos de treino & 0,355 & Teto imposto pela escassez de dados \\
+Rede grande + Adam, todos os 300 pontos & 0,142 & \textbf{Piso de ruído}: nenhum modelo vai abaixo \\
+\quad \textit{estimativa independente, por vizinhos} & \textit{0,173} & \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 A terceira referência é a mais relevante. Ajustando uma rede de grande capacidade a \textit{todos} os 300 pontos, resta um erro que não desaparece: trata-se de \textbf{ruído aleatório}, sem relação com $x$ e, portanto, impossível de prever. O mesmo valor foi estimado de forma independente pela dispersão entre pontos vizinhos ($\sigma \approx 0{,}42$, ou MSE $\approx 0{,}173$), obtendo-se ordem de grandeza compatível. Como parte do erro é irreprodutível, o \textbf{$R^2$ máximo alcançável neste conjunto situa-se entre 0,67 e 0,73}, não em 1,0.
