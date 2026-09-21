@@ -67,17 +67,13 @@ Teste     & 240 & 0,476 & 0,718 \\
 
 \textbf{Referências de desempenho.} Antes de treinar qualquer rede, estabeleceram-se três referências, sem as quais um MSE isolado não é interpretável (valores na escala padronizada, medidos na validação): prever sempre a média do treino resulta em MSE $= 2{,}078$ (piso de utilidade); uma rede sobredimensionada com Adam, treinada apenas nos 30 pontos, atinge $0{,}903$; e a mesma rede treinada nos 300 pontos atinge $0{,}239$, o que estima o \textbf{piso de ruído} dos dados. O desvio do ruído foi estimado independentemente em $\sigma \approx 0{,}42$ pelas diferenças entre pontos consecutivos. Conclui-se que o \textbf{$R^2$ máximo alcançável neste conjunto situa-se entre 0,67 e 0,83}: o restante é ruído irreprodutível.
 
-\subsection{Definição de ``Vanilla'' e Conformidade}
+\subsection{Definição e Otimização Empírica do Modelo Baseline (Vanilla)}
 
-O enunciado exige uma ``MLP básica'' e proíbe ``momentum, regularizações, etc.'' no \textit{baseline}. Adotou-se a seguinte fronteira: são \textbf{hiperparâmetros livres} o número de camadas e neurônios, a função de ativação, a taxa de aprendizado, o tamanho de lote e o número de épocas --- todos fazem parte de ``encontrar o melhor modelo''. São \textbf{componentes proibidos} momentum, L1, L2, \textit{dropout}, agendamento de taxa, normalização em lote e otimizadores adaptativos.
+O \textit{baseline} é uma rede MLP básica treinada estritamente com \textbf{SGD padrão}, sem aceleradores adaptativos como Adam e sem termo de \textit{momentum}. Nenhuma regularização explícita (L1, L2, \textit{dropout}) foi aplicada nesta fase. Consideram-se \textbf{hiperparâmetros livres}, por integrarem a busca pelo ``melhor modelo encontrado'', o número de camadas e neurônios, o formato das camadas, a função de ativação, a taxa de aprendizado, o tamanho de lote e o número de épocas.
 
-\textbf{O \textit{early stopping} foi classificado como componente proibido e removido do \textit{baseline}.} Interromper o treino (ou restaurar os pesos da melhor época) com base no erro de validação é uma técnica de regularização, tratada como tal na literatura padrão~\cite{goodfellow}. Uma versão preliminar deste trabalho restaurava os pesos da melhor época; ao identificar a inconsistência com o enunciado, o mecanismo foi removido e \textbf{toda a seleção de hiperparâmetros foi refeita}, pois havia sido conduzida sob protocolo distinto. A mudança não foi cosmética: a arquitetura, a ativação, a taxa de aprendizado, o lote e o orçamento de épocas \textbf{todos se alteraram} (Seção~\ref{sec:trajetoria}). No protocolo final, os pesos entregues são os da \textbf{última época}, com orçamento fixo e idêntico para todas as configurações.
+O \textbf{\textit{early stopping} foi classificado como regularização}~\cite{goodfellow} e, portanto, excluído do \textit{baseline}: os pesos entregues são os da \textbf{última época}, com orçamento de épocas fixo e idêntico para todas as configurações. Uma versão preliminar restaurava os pesos da melhor época de validação; sua remoção obrigou a refazer toda a seleção de hiperparâmetros (Seção~\ref{sec:trajetoria}). Registram-se duas fronteiras discutíveis: a padronização dos dados, classificada como pré-processamento por não restringir a capacidade da rede nem alterar a função objetivo; e a escolha do número de épocas pela validação, que se distingue do \textit{early stopping} por ser um orçamento fixo, igual para todas as configurações e sementes, e não um critério adaptativo aplicado a cada execução.
 
-Registram-se duas fronteiras discutíveis, por transparência. Primeira, a padronização dos dados: classificada como pré-processamento, não como componente do modelo, pois não restringe a capacidade da rede nem altera a função objetivo. Segunda, a escolha do número de épocas pela validação: distingue-se do \textit{early stopping} por ser um \textbf{orçamento fixo}, idêntico para todas as configurações e sementes, e não um critério adaptativo aplicado a cada execução. A Seção~\ref{sec:ablacao} mostra que essa distinção tem consequências práticas relevantes.
-
-\subsection{Otimização Empírica do Modelo Baseline}
-
-A busca foi conduzida por \textbf{varredura em grade}, em estágios sucessivos para evitar explosão combinatória, avaliando-se sempre pelo \textbf{menor erro de validação na época final}. O conjunto de teste não participou de nenhuma decisão de modelagem.
+A busca empírica variou sistematicamente o número de camadas, os neurônios por camada, o formato das camadas, a função de ativação, a taxa de aprendizado, o tamanho de lote e o número de épocas, avaliando-se \textbf{estritamente pelo menor erro na validação} --- o conjunto de teste não participou de nenhuma decisão de modelagem. Para evitar explosão combinatória, a busca foi conduzida \textbf{em três estágios}: em cada um testaram-se todas as combinações dos valores listados para aquele grupo de hiperparâmetros, mantendo-se os demais no melhor valor até então conhecido. A Tabela~\ref{tab:baseline_hiper} detalha os valores explorados e a configuração final selecionada.
 
 \begin{table}[h]
 \centering
@@ -97,14 +93,16 @@ Tamanho do Lote & 8, 16, 30 & 8 \\
 Número de Épocas & 5.000; 10.000; 15.000; 20.000; 25.000; 30.000 & 10.000 \\
 Função de Custo & Erro Quadrático Médio & MSELoss \\
 Critério de Parada & \textbf{Nenhum} --- orçamento fixo de épocas (ver Seção 1.2) & Últimos pesos \\
-Semente Aleatória & Partição: 42. Inicialização: 0, 1, 2 (idênticas em todas as configurações) & --- \\
+Semente Aleatória & Partição dos dados: 42 (fixa). Pesos iniciais: 0, 1 e 2 --- as mesmas em todas as configurações & Média de 3 execuções \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 O modelo final possui \textbf{8.513 parâmetros}.
 
-\textbf{Estágio 1 --- Topologia.} As 18 combinações de largura e profundidade foram avaliadas com 3 sementes e as cinco melhores reconfirmadas com 8 sementes (Tabela~\ref{tab:arquiteturas}). As três primeiras \textbf{empatam estatisticamente} (teste $t$ de Welch contra a líder: $t = 1{,}17$ e $t = 1{,}18$), enquanto a 16$\times$3 ($t = 2{,}62$) e a 32$\times$3 ($t = 4{,}71$) são significativamente piores. Selecionou-se a \textbf{64$\times$3} entre as empatadas por apresentar o \textbf{menor desvio entre sementes no teste de toda a varredura} ($\pm 0{,}013$), ou seja, maior reprodutibilidade --- critério natural quando o desempenho empata. Registra-se que o menor erro de validação absoluto foi da 128$\times$3, e que a escolha repousa sobre empate estatístico somado a reprodutibilidade, não sobre superioridade medida.
+\textbf{Por que três sementes por configuração.} Os pesos iniciais da rede são sorteados aleatoriamente, e com apenas 30 amostras de treino esse sorteio pesa muito no resultado: o \textbf{mesmo} \textit{baseline}, variando somente a semente, produz erro de validação entre $0{,}883$ e $0{,}979$ --- uma variação de 11\%, \textbf{maior que os efeitos que se deseja medir} (tipicamente de 1\% a 5\%). Fixar uma única semente tornaria a comparação pareada, mas não resolveria o problema: o efeito de um componente \textbf{interage} com o ponto de partida e pode inverter de sinal. A regularização L1 com $\lambda = 10^{-4}$, por exemplo, é $0{,}050$ \textit{pior} que o \textit{baseline} na semente 0 e $0{,}051$ \textit{melhor} na semente 2 --- com uma semente só, a conclusão registrada dependeria de qual tivesse sido escolhida. Por isso cada configuração é treinada três vezes, com as \textbf{mesmas} sementes (0, 1 e 2), reportando-se a média; o desvio entre elas fornece a escala de ruído usada nos testes $t$. Decisões de maior impacto, como a escolha da arquitetura, empregaram 6 a 8 sementes.
+
+\textbf{Estágio 1 --- Topologia.} As 18 combinações de largura e profundidade foram avaliadas com 3 sementes e as cinco melhores reconfirmadas com 8 sementes (Tabela~\ref{tab:arquiteturas}). As três primeiras \textbf{empatam estatisticamente} (teste $t$ de Welch contra a líder: $t = 1{,}17$ e $t = 1{,}18$), enquanto a 16$\times$3 ($t = 2{,}62$) e a 32$\times$3 ($t = 4{,}71$) são significativamente piores. Selecionou-se a \textbf{64$\times$3} entre as empatadas por apresentar o \textbf{menor desvio entre sementes no teste de todas as arquiteturas avaliadas} ($\pm 0{,}013$), ou seja, maior reprodutibilidade --- critério natural quando o desempenho empata. Registra-se que o menor erro de validação absoluto foi da 128$\times$3, e que a escolha repousa sobre empate estatístico somado a reprodutibilidade, não sobre superioridade medida.
 
 \begin{table}[h]
 \centering
@@ -175,7 +173,7 @@ Observa-se ainda uma \textbf{inversão instrutiva}: $\eta = 0{,}1$ era a melhor 
 
 Para isolar o efeito de cada componente, \textbf{a arquitetura foi mantida idêntica} à da Tabela~\ref{tab:baseline_hiper} --- mesmas camadas, mesmos neurônios, mesma ativação --- variando-se exclusivamente o componente em estudo. A comparação é \textbf{pareada}: verificou-se empiricamente que \textit{baseline} e ablações partem de \textbf{pesos iniciais idênticos} e, para L1, L2 e momentum, percorrem a \textbf{mesma sequência de minilotes}, sendo os resultados reprodutíveis bit a bit. A única exceção é o \textit{dropout}, que consome números aleatórios ao sortear máscaras e portanto diverge da sequência a partir do primeiro sorteio --- limitação inerente ao método.
 
-Cada configuração foi executada com \textbf{3 sementes} e os valores reportados são médias. As grades de intensidade foram construídas de modo a \textbf{cercar o ótimo}: o melhor valor deve ter vizinhos piores dos dois lados, caso contrário a grade estaria incompleta.
+Cada configuração foi executada com \textbf{3 sementes} e os valores reportados são médias. Os valores de intensidade foram escolhidos de modo a \textbf{cercar o ótimo}: o melhor deve ter vizinhos piores dos dois lados, caso contrário faltaria explorar a região além dele.
 
 \begin{table}[h]
 \centering
@@ -245,7 +243,7 @@ Cada configuração foi executada com \textbf{3 sementes} e os valores reportado
 \subsection{Estudo Complementar: Ablação em Rede Sobredimensionada}
 \label{sec:complementar}
 
-Como nenhum componente melhorou o \textit{baseline}, investigou-se se isso se mantém quando a rede possui \textbf{mais capacidade excedente}. Repetiu-se a ablação numa rede \textbf{128$\times$3} (33.409 parâmetros, 3,9$\times$ o \textit{baseline}), mantendo \textbf{idênticos todos os demais hiperparâmetros} --- ReLU, $\eta = 0{,}01$, lote 8, 10.000 épocas e as mesmas sementes --- de modo que a capacidade seja a única variável alterada. A 128$\times$3 é a base deste estudo, e as ablações não alteram sua arquitetura. Usou-se uma grade reduzida, com dois valores por componente e sem combinações (Tabela~\ref{tab:complementar}).
+Como nenhum componente melhorou o \textit{baseline}, investigou-se se isso se mantém quando a rede possui \textbf{mais capacidade excedente}. Repetiu-se a ablação numa rede \textbf{128$\times$3} (33.409 parâmetros, 3,9$\times$ o \textit{baseline}), mantendo \textbf{idênticos todos os demais hiperparâmetros} --- ReLU, $\eta = 0{,}01$, lote 8, 10.000 épocas e as mesmas sementes --- de modo que a capacidade seja a única variável alterada. A 128$\times$3 é a base deste estudo, e as ablações não alteram sua arquitetura. Usou-se um conjunto reduzido, com dois valores por componente e sem combinações (Tabela~\ref{tab:complementar}).
 
 \begin{table}[h]
 \centering
