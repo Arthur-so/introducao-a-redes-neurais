@@ -79,14 +79,11 @@ Teste     & 240 & 0,476 & 0,718 \\
 Prever sempre a média do treino & 0,518 & Modelo trivial; ignora $x$ por completo \\
 Rede grande + Adam, apenas os 30 pontos de treino & 0,355 & Teto imposto pela escassez de dados \\
 Rede grande + Adam, todos os 300 pontos & 0,142 & \textbf{Piso de ruído}: nenhum modelo vai abaixo \\
-\quad \textit{estimativa independente, por vizinhos} & \textit{0,173} & \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-A terceira referência é a mais relevante. Ajustando uma rede de grande capacidade a \textit{todos} os 300 pontos, resta um erro que não desaparece: trata-se de \textbf{ruído aleatório}, sem relação com $x$ e, portanto, impossível de prever. O mesmo valor foi estimado de forma independente pela dispersão entre pontos vizinhos ($\sigma \approx 0{,}42$, ou MSE $\approx 0{,}173$), obtendo-se ordem de grandeza compatível. Como parte do erro é irreprodutível, o \textbf{$R^2$ máximo alcançável neste conjunto situa-se entre 0,67 e 0,73}, não em 1,0.
-
-Essas referências dão sentido aos resultados. O \textit{baseline} atinge MSE de teste 0,353 e percorre, portanto, \textbf{entre 44\% e 48\% da distância} que separa o modelo trivial (0,518) do piso de ruído. Mais revelador: esse valor é \textbf{estatisticamente idêntico ao da rede sobredimensionada treinada com Adam sobre os mesmos 30 pontos} (0,355), o que indica que o fator limitante é o volume de dados --- não o otimizador nem a capacidade do modelo.
+A terceira referência é a mais relevante. Ajustando uma rede de grande capacidade a \textit{todos} os 300 pontos, resta um erro que não desaparece: trata-se de \textbf{ruído aleatório}, sem relação com $x$ e, portanto, impossível de prever.
 
 \subsection{Definição e Otimização Empírica do Modelo Baseline (Vanilla)}
 
@@ -311,7 +308,7 @@ Momentum $\beta = 0{,}9$     & 0,3702 & 0,282 & $1{,}046 \pm 0{,}014$ & $+4{,}76
 
 \textbf{Análise de resíduos.} A Figura~\ref{fig:parity} revela \textbf{atenuação} acentuada: o ajuste linear de predito contra real tem inclinação $0{,}463$, quando o ideal seria $1{,}0$, e as previsões cobrem apenas \textbf{60\% da amplitude real} ($[-1{,}17,\ 1{,}29]$ contra $[-1{,}49,\ 2{,}66]$). Os resíduos apresentam estrutura sistemática por faixa: $-0{,}242$ nos valores baixos de $y$, $+0{,}157$ nos médios e $+0{,}737$ nos altos. O modelo \textbf{subestima sistematicamente os extremos superiores}. Trata-se de regressão à média: sob ruído elevado ($\sigma \approx 0{,}42$) e poucos dados, prever próximo à média minimiza o erro quadrático esperado, ao custo de sacrificar as caudas. Esse padrão \textbf{persiste em todos os modelos regularizados} --- nenhuma das técnicas de ablação o corrigiu, pois nenhuma ataca sua causa, que é a escassez de dados.
 
-\textbf{Perspectiva realista de desempenho.} O $R^2$ de teste de 0,288 deve ser lido contra o teto de 0,67--0,73 imposto pelo ruído dos dados (Tabela~\ref{tab:referencias}), e não contra um ideal de 1,0. O modelo recupera entre \textbf{44\% e 48\% do sinal aprendível}; o restante não é falha do modelo, mas ruído irreprodutível.
+\textbf{Perspectiva realista de desempenho.} O $R^2$ de teste de 0,288 deve ser lido contra o teto de aproximadamente 0,73 imposto pelo ruído dos dados (Tabela~\ref{tab:referencias}), e não contra um ideal de 1,0. O modelo recupera cerca de \textbf{44\% do sinal aprendível}; o restante não é falha do modelo, mas ruído irreprodutível.
 
 \subsection{Trajetória do Desenvolvimento e Revisões}
 \label{sec:trajetoria}
