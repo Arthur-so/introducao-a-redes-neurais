@@ -118,7 +118,7 @@ Semente Aleatória & Partição dos dados: 42 (fixa). Pesos iniciais: 0, 1 e 2 -
 
 O modelo final possui \textbf{8.513 parâmetros}.
 
-\textbf{Por que três sementes por configuração.} Os pesos iniciais da rede são sorteados aleatoriamente, e com apenas 30 amostras de treino esse sorteio pesa muito no resultado: o \textbf{mesmo} \textit{baseline}, variando somente a semente, produz erro de validação entre $0{,}883$ e $0{,}979$ --- uma variação de 11\%, \textbf{maior que os efeitos que se deseja medir} (tipicamente de 1\% a 5\%). Fixar uma única semente tornaria a comparação pareada, mas não resolveria o problema: o efeito de um componente \textbf{interage} com o ponto de partida e pode inverter de sinal. A regularização L1 com $\lambda = 10^{-4}$, por exemplo, é $0{,}050$ \textit{pior} que o \textit{baseline} na semente 0 e $0{,}051$ \textit{melhor} na semente 2 --- com uma semente só, a conclusão registrada dependeria de qual tivesse sido escolhida. Por isso cada configuração é treinada três vezes, com as \textbf{mesmas} sementes (0, 1 e 2), reportando-se a média.
+\textbf{Por que três sementes por configuração.} Os pesos iniciais da rede são sorteados aleatoriamente, e com apenas 30 amostras de treino esse sorteio pesa muito no resultado: o \textbf{mesmo} \textit{baseline}, variando somente a semente, produz erro de validação entre $0{,}326$ e $0{,}361$ --- uma variação de 11\%, \textbf{maior que os efeitos que se deseja medir} (tipicamente de 1\% a 5\%). Fixar uma única semente tornaria a comparação pareada, mas não resolveria o problema: o efeito de um componente \textbf{interage} com o ponto de partida e pode inverter de sinal. A regularização L1 com $\lambda = 10^{-4}$, por exemplo, é $0{,}018$ \textit{pior} que o \textit{baseline} na semente 0 e $0{,}019$ \textit{melhor} na semente 2 --- com uma semente só, a conclusão registrada dependeria de qual tivesse sido escolhida. Por isso cada configuração é treinada três vezes, com as \textbf{mesmas} sementes (0, 1 e 2), reportando-se a média.
 
 Repetir também permite julgar se uma diferença é real. O critério adotado é simples: \textbf{compara-se o tamanho da diferença entre duas médias com a variação natural entre execuções}. Se a diferença for menor que essa variação, os modelos são considerados equivalentes. Essa razão é reportada como $t$ (teste $t$ de Welch): \textbf{$t$ próximo de 1 significa empate}, pois diferença e ruído têm o mesmo tamanho, e \textbf{$t$ acima de 2 indica diferença real}. Decisões de maior impacto, como a escolha da arquitetura, empregaram 6 a 8 sementes.
 
@@ -237,7 +237,7 @@ Cada configuração foi executada com \textbf{3 sementes} e os valores reportado
 \end{tabularx}
 \end{table}
 
-\textbf{Nenhum componente melhorou o \textit{baseline}.} O melhor resultado da ablação é o L1 com $\lambda = 10^{-4}$, que reduz o MSE de teste em $0{,}0007$ --- dois décimos de por cento, indistinguível de ruído frente ao desvio entre sementes. As \textbf{combinações também não ajudaram}: a melhor delas (L2 + momentum) fica $0{,}0029$ acima do \textit{baseline}. E, diferentemente de experimentos preliminares, \textbf{as duas métricas concordam}: na validação --- o critério de seleção --- o \textit{baseline} apresenta o menor erro de todos ($0{,}9465$), abaixo de qualquer configuração aditivada.
+\textbf{Nenhum componente melhorou o \textit{baseline}.} O melhor resultado da ablação é o L1 com $\lambda = 10^{-4}$, que reduz o MSE de teste em $0{,}0007$ --- dois décimos de por cento, indistinguível de ruído frente ao desvio entre sementes. As \textbf{combinações também não ajudaram}: a melhor delas (L2 + momentum) fica $0{,}0029$ acima do \textit{baseline}. E, diferentemente de experimentos preliminares, \textbf{as duas métricas concordam}: na validação --- o critério de seleção --- o \textit{baseline} apresenta o menor erro de todos ($0{,}349$), abaixo de qualquer configuração aditivada.
 
 \textbf{Por que nada funcionou.} O orçamento de 10.000 épocas foi selecionado como o mínimo da curva de validação (Tabela~\ref{tab:epocas}), o que posiciona o \textit{baseline} exatamente no ponto de equilíbrio entre subajuste e sobreajuste. A regularização existe para \textit{deslocar} esse ponto; com o orçamento já ajustado ao mínimo, ela apenas restringe um modelo que já se encontra bem posicionado. Trata-se do mesmo mecanismo do \textit{early stopping} reaparecendo sob outra forma: \textbf{ajustar o número de épocas pela validação captura o benefício que a regularização ofereceria}. Isso sugere que, tivesse o orçamento sido fixado arbitrariamente em valor alto, L1 e L2 teriam apresentado ganho aparente que, na verdade, seria apenas compensação de um orçamento mal escolhido.
 
@@ -268,23 +268,23 @@ Como nenhum componente melhorou o \textit{baseline}, investigou-se se isso se ma
 \begin{table}[h]
 \centering
 \small
-\caption{Ablação na rede 128$\times$3 (3 sementes). MSE e $R^2$ no teste, em escala original; erro de validação na época final, em escala padronizada, com desvio entre sementes e o valor de $t$ contra a base 128$\times$3 ($|t|$ perto de 1 indica empate; acima de 2, diferença real).}
+\caption{Ablação na rede 128$\times$3 (3 sementes). MSE e $R^2$ no teste, em escala original; erro de validação na época final, também em escala original, com desvio entre sementes e o valor de $t$ contra a base 128$\times$3 ($|t|$ perto de 1 indica empate; acima de 2, diferença real).}
 \label{tab:complementar}
 \begin{tabular}{lcccc}
 \toprule
 \textbf{Configuração} & \textbf{MSE teste} & \textbf{$R^2$ teste} & \textbf{Val. final} & \textbf{$t$ (val.)} \\
 \midrule
-\textit{Baseline 64$\times$3 (referência)} & \textit{0,3527} & \textit{0,316} & \textit{0,947} & --- \\
+\textit{Baseline 64$\times$3 (referência)} & \textit{0,3527} & \textit{0,316} & \textit{0,349} & --- \\
 \midrule
-\textbf{Base 128$\times$3}   & \textbf{0,3906} & \textbf{0,242} & $\mathbf{1{,}002 \pm 0{,}007}$ & --- \\
-L1 $\lambda = 10^{-4}$       & 0,3933 & 0,237 & $1{,}006 \pm 0{,}014$ & $+0{,}52$ \\
-L1 $\lambda = 10^{-3}$       & 0,4185 & 0,188 & $1{,}128 \pm 0{,}146$ & $+1{,}50$ \\
-L2 $\lambda = 10^{-4}$       & 0,3852 & 0,253 & $1{,}000 \pm 0{,}007$ & $-0{,}29$ \\
-L2 $\lambda = 10^{-3}$       & 0,3871 & 0,249 & $1{,}011 \pm 0{,}018$ & $+0{,}79$ \\
-Dropout $p = 0{,}1$          & 0,3892 & 0,245 & $0{,}988 \pm 0{,}015$ & $-1{,}42$ \\
-Dropout $p = 0{,}2$          & 0,4014 & 0,221 & $1{,}305 \pm 0{,}033$ & $+15{,}64$ \\
-Momentum $\beta = 0{,}5$     & 0,3730 & 0,276 & $0{,}988 \pm 0{,}020$ & $-1{,}12$ \\
-Momentum $\beta = 0{,}9$     & 0,3702 & 0,282 & $1{,}046 \pm 0{,}014$ & $+4{,}76$ \\
+\textbf{Base 128$\times$3}   & \textbf{0,3906} & \textbf{0,242} & $\mathbf{0{,}369 \pm 0{,}003}$ & --- \\
+L1 $\lambda = 10^{-4}$       & 0,3933 & 0,237 & $0{,}371 \pm 0{,}005$ & $+0{,}52$ \\
+L1 $\lambda = 10^{-3}$       & 0,4185 & 0,188 & $0{,}416 \pm 0{,}054$ & $+1{,}50$ \\
+L2 $\lambda = 10^{-4}$       & 0,3852 & 0,253 & $0{,}369 \pm 0{,}002$ & $-0{,}29$ \\
+L2 $\lambda = 10^{-3}$       & 0,3871 & 0,249 & $0{,}373 \pm 0{,}007$ & $+0{,}79$ \\
+Dropout $p = 0{,}1$          & 0,3892 & 0,245 & $0{,}364 \pm 0{,}006$ & $-1{,}42$ \\
+Dropout $p = 0{,}2$          & 0,4014 & 0,221 & $0{,}481 \pm 0{,}012$ & $+15{,}64$ \\
+Momentum $\beta = 0{,}5$     & 0,3730 & 0,276 & $0{,}364 \pm 0{,}007$ & $-1{,}12$ \\
+Momentum $\beta = 0{,}9$     & 0,3702 & 0,282 & $0{,}386 \pm 0{,}005$ & $+4{,}76$ \\
 \bottomrule
 \end{tabular}
 \end{table}
