@@ -185,7 +185,7 @@ O erro no treino é muito menor que na validação e no teste, o que indica \tex
 
 Cada componente foi adicionado ao \textit{baseline} sem mudar sua arquitetura, usando as mesmas sementes. Para cada componente, testaram-se diferentes intensidades, e também combinações dos melhores. A Tabela~\ref{tab:ablation_metrics} mostra os resultados no teste (média de 3 repetições).
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \small
 \caption{Estudo de ablação no conjunto de teste (média de 3 repetições). ``Épocas até convergir'' indica quando o erro de validação se estabiliza.}
@@ -229,14 +229,14 @@ L1 + L2 + momentum & 0,3648 & 0,6039 & 0,4693 & 0,2924 & 5.124 \\
     \item \textbf{Momentum:} não mudou o erro final, mas fez o treino convergir muito mais rápido.
 \end{itemize}
 
-\begin{figure}[h]
+\textbf{Análise dos erros.} A Figura~\ref{fig:parity} compara, para cada ponto de teste, o valor real com o valor previsto. Se o modelo acertasse tudo, todos os pontos ficariam sobre a linha tracejada. O que se observa é que \textbf{as previsões ficam mais próximas da média do que os valores reais}: o modelo acerta bem os valores intermediários, mas erra os extremos, principalmente os mais altos. Por exemplo, para o maior valor real do teste (2,66), o modelo previu 0,77; e, enquanto os valores reais vão de $-1{,}49$ a $2{,}66$, as previsões ficam entre $-1{,}17$ e $1{,}29$. No gráfico da direita, os pontos acima da linha zero são casos em que o modelo previu \textbf{abaixo} do valor real. Esse comportamento é esperado com poucos dados e muito ruído: prever perto da média é a forma de errar menos em média, ao custo de errar mais nos extremos. Nenhum dos componentes testados corrigiu isso.
+
+\begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{baseline_residuos.png}
 \caption{Esquerda: valor real \textit{versus} previsto no teste (a linha tracejada é a previsão perfeita). Direita: erro de cada previsão.}
 \label{fig:parity}
 \end{figure}
-
-\textbf{Análise dos erros.} A Figura~\ref{fig:parity} mostra que as previsões ficam \textbf{concentradas perto da média}: o modelo cobre apenas cerca de 60\% da faixa real de $y$ e \textbf{subestima os valores altos}. Com poucos dados e muito ruído, prever perto da média é a forma de errar menos em média, mas isso prejudica os extremos. Nenhum dos componentes testados corrigiu esse comportamento.
 
 \subsection{Estudo Complementar: Rede Maior}
 
