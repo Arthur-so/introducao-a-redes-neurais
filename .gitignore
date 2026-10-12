@@ -5,3 +5,5 @@ __pycache__/
 *.aux
 *.out
 *.synctex.gz
+CLAUDE.md
+guia-do-codigo.md
