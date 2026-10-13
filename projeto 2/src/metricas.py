@@ -1,0 +1,29 @@
+"""Métricas comuns ao SOM e à GNG: BMUs, erro de quantização, erro topológico e hits."""
+import numpy as np
+
+
+def primeiro_e_segundo_bmu(pixels, pesos):
+    """Índices do 1º e do 2º neurônio mais próximo de cada pixel (n x 2)."""
+    distancias = np.linalg.norm(pixels[:, None, :] - pesos[None, :, :], axis=2)
+    return np.argsort(distancias, axis=1)[:, :2]
+
+
+def erro_por_pixel(pixels, pesos, bmus):
+    """Distância euclidiana entre cada pixel e o peso do seu BMU."""
+    return np.linalg.norm(pixels - pesos[bmus[:, 0]], axis=1)
+
+
+def erro_quantizacao(erros_dos_pixels):
+    """EQ: média da distância de cada pixel ao seu BMU."""
+    return erros_dos_pixels.mean()
+
+
+def erro_topologico(bmus, vizinhos):
+    """ET: fração dos pixels cujo 1º e 2º BMU não são vizinhos."""
+    sao_vizinhos = vizinhos[bmus[:, 0], bmus[:, 1]]
+    return 1.0 - sao_vizinhos.mean()
+
+
+def contar_hits(bmus, num_neuronios):
+    """Quantos pixels cada neurônio captura como 1º BMU."""
+    return np.bincount(bmus[:, 0], minlength=num_neuronios)
