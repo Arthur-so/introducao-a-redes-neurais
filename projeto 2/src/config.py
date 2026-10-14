@@ -29,7 +29,7 @@ NUM_EPOCAS = 5
 LADOS_GRADE_SOM = [4, 8, 16]
 NUM_NEURONIOS_GNG = [16, 64, 256]
 
-# Escolhidos num teste (sigma0 em 1, 2, 4 e eta0 em 0,1 e 0,5) nas imagens das variações.
+# Escolhidos num teste com sigma0 em 1, 2, 4 e eta0 em 0,1 e 0,5.
 SOM_BASE = {"sigma0": 2.0, "eta0": 0.1, "vizinhanca": "gaussian"}
 
 # Valores mais utilizados para a GNG.

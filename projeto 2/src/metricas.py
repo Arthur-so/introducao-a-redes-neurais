@@ -1,6 +1,15 @@
 """Métricas comuns ao SOM e à GNG: BMUs, erro de quantização, erro topológico e hits."""
 import numpy as np
 
+"""
+Algumas definições de termos usados nas métricas:
+- BMU é o neurônio escolhido para representar o pixel, o mais próximo dele (é só um número, um índice).
+- Peso é a cor desse neurônio, 3 números (R, G, B). A cor do BMU é pesos[número do BMU].
+
+- A posição da linha de BMU (o índice da linha) é o número do pixel.
+- Os valores guardados dentro de cada linha são números de neurônios: o 1º e o 2º BMU daquele pixel.
+"""
+
 
 def primeiro_e_segundo_bmu(pixels, pesos):
     """Índices do 1º e do 2º neurônio mais próximo de cada pixel (n x 2)."""
