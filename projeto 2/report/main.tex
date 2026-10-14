@@ -318,8 +318,6 @@ As variações foram rodadas nas imagens 1 e 4, mudando um parâmetro por vez em
     \item \textbf{Número de cores.} 16 cores bastam para reconhecer as imagens, mas criam faixas nos degradês (imagem 4) e trocam as cores de detalhes (imagens 2, 3 e 5). Com 64 cores o resultado já é bom, e com 256 fica praticamente igual ao original.
     \item \textbf{Cores raras desaparecem.} Detalhes de cor muito pouco frequentes, como a pessoa avermelhada da imagem 1, não ganham um neurônio próprio em nenhuma rede.
     \item \textbf{Vizinhança e taxas.} A vizinhança gaussiana preserva melhor a topologia que a bubble, ao custo de um EQ um pouco maior. As taxas de aprendizado tiveram efeito pequeno no EQ dentro dos valores testados.
-    \item \textbf{Revisões durante o desenvolvimento.} (i) A GNG começava com 2 neurônios de cores sorteadas em todo o cubo RGB; isso deixava neurônios longe dos dados e quase sem pixels, então ela passou a começar com as cores de 2 pixels sorteados, como o SOM. (ii) Parar a GNG ao atingir o número alvo faria a GNG de 16 neurônios ver só cerca de 750 pixels; por isso ela continua se adaptando até completar as 5 passagens.
-    \item \textbf{Limitações.} Cada configuração foi treinada com uma única semente, e o ET do SOM variou bastante entre configurações próximas, então pequenas diferenças de ET não devem ser interpretadas. O ET da GNG não é comparável ao do SOM, como explicado na Seção~\ref{sec:som_gng}.
 \end{itemize}
 
 \end{document}
