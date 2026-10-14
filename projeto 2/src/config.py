@@ -31,15 +31,18 @@ NUM_NEURONIOS_GNG = [16, 64, 256]
 
 # Escolhidos num teste com sigma0 em 1, 2, 4 e eta0 em 0,1 e 0,5.
 SOM_BASE = {"sigma0": 2.0, "eta0": 0.1, "vizinhanca": "gaussian"}
+# sigma0: tamanho da vizinhança inicial (em neurônios) para o decaimento exponencial da vizinhança.
+# eta0: taxa de aprendizado inicial (para o decaimento exponencial da taxa de aprendizado).
+# vizinhanca: "gaussian" ou "bubble" (vizinhanca em forma de bolha, sem decaimento).
 
 # Valores mais utilizados para a GNG.
 GNG_BASE = {
-    "eta_b": 1e-2,
-    "eta_n": 1e-4,
-    "beta": 0.005,
-    "alfa": 0.5,
-    "lambda": 50,
-    "idade_max": 90,
+    "eta_b": 1e-2,   # controla atualização do peso do bmu
+    "eta_n": 1e-4,   # controla atualização dos pesos dos vizinhos do bmu
+    "beta": 0.005,   # controla o decaimento dos erros (geral)
+    "alfa": 0.5,     # controla o decaimento dos erros do bmu e do vizinho de maior erro quando um novo neurônio é inserido
+    "lambda": 50,    # controla a frequência de inserção de novos neurônios
+    "idade_max": 90, # controla a idade máxima de uma aresta antes de ser removida
 }
 
 # Cada variação muda só os parâmetros indicados em relação à configuração base.

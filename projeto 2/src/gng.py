@@ -1,10 +1,10 @@
 """GNG (Growing Neural Gas) implementada à mão, seguindo a Aula 12 (slides 4 a 9).
 
-A rede é um dicionário com:
-  pesos    (N x 3)  cor RGB de cada neurônio
-  erros    (N)      erro local acumulado de cada neurônio
-  conexoes (N x N)  True se existe aresta entre dois neurônios
-  idades   (N x N)  idade de cada aresta
+A rede é um dicionário com (K = número atual de neurônios, que começa em 2 e cresce até o alvo):
+  pesos    (K x 3)  cor RGB de cada neurônio
+  erros    (K)      erro local acumulado de cada neurônio
+  conexoes (K x K)  True se existe aresta entre dois neurônios
+  idades   (K x K)  idade de cada aresta
 """
 import numpy as np
 
@@ -12,10 +12,7 @@ from metricas import primeiro_e_segundo_bmu
 
 
 def criar_rede(pixels, gerador):
-    """Rede inicial: 2 neurônios com as cores de 2 pixels sorteados e nenhuma conexão.
-
-    Pesos sorteados em todo o cubo RGB deixavam neurônios longe dos dados, quase sem uso.
-    """
+    """Rede inicial: 2 neurônios com as cores de 2 pixels sorteados e nenhuma conexão."""
     return {
         "pesos": pixels[gerador.choice(len(pixels), 2, replace=False)].copy(),
         "erros": np.zeros(2),
