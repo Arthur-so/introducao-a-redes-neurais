@@ -7,3 +7,5 @@ __pycache__/
 *.synctex.gz
 CLAUDE.md
 guia-do-codigo.md
+projeto 3/data/
+*.pt
